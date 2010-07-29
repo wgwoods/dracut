@@ -63,7 +63,7 @@ NEWROOT="/sysroot"
 
 trap "emergency_shell Signal caught!" 0
 # set umask
-umask 0007
+#umask 0007
 
 RDDEBUG=""
 . /lib/dracut-lib.sh
