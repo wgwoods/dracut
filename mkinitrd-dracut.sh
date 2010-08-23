@@ -142,9 +142,9 @@ if [ -n "$img_vers" ]; then
 fi
 
 if [ -n "$basicmodules" ]; then
-	dracut -H $dracut_args --add-drivers "$basicmodules" "$target" "$kernel"
+	dracut $dracut_args --add-drivers "$basicmodules" "$target" "$kernel"
 else
-	dracut -H $dracut_args "$target" "$kernel"
+	dracut $dracut_args "$target" "$kernel"
 fi
 
 # vim:ts=8:sw=4:sts=4:et
