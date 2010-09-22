@@ -202,6 +202,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/dracut/modules.d/90mdraid
 %{_datadir}/dracut/modules.d/90multipath
 %{_datadir}/dracut/modules.d/95debug
+%{_datadir}/dracut/modules.d/95fstab-sys
 %{_datadir}/dracut/modules.d/95resume
 %{_datadir}/dracut/modules.d/95rootfs-block
 %{_datadir}/dracut/modules.d/95dasd
