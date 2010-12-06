@@ -16,7 +16,7 @@ for f in  \
     /sbin/xdrgetprio \
     /etc/xdrdevices.conf \
     /etc/multipath.conf \
-    /etc/multipath/wwids \
+    /etc/multipath/* \
     $(ls $LIBDIR/libmultipath* $LIBDIR/multipath/* 2>/dev/null) \
     	;do
     [ -e "$f" ] && inst "$f"
