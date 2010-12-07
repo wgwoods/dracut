@@ -68,7 +68,7 @@ while [ $# -gt 0 ]; do
         -v|--verbose)
             dracut_args="${dracut_args} -v"
             ;;
-        -f)
+        -f|--force)
             dracut_args="${dracut_args} -f"
             ;;
         --preload*)
