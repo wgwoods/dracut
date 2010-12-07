@@ -358,10 +358,10 @@ will read the iscsi parameter from the BIOS firmware
 
 .SS FCoE
 .TP
-.BR netroot= fcoe:<interface|MAC>:<dcb|nodcb>
-Try to connect to a FCoE SAN through the NIC specified by <interface> or <MAC>,
-for the second argument, currently only nodcb is supported. Note letters in
-the MAC-address must be lowercase!
+.BR fcoe=<edd|interface|MAC>:<dcb|nodcb>
+Try to connect to a FCoE SAN through the NIC specified by <interface> or <MAC> or EDD settings.
+Note letters in the MAC-address must be lowercase!
+This parameter can be specified multiple times.
 
 .SS NBD
 .TP
