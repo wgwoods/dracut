@@ -73,7 +73,5 @@ else
         fi
         source /sbin/fcoe-genrules.sh
     done
-else
-    warn "Invalid arguments for fcoe=$fcoe"
 fi
 
