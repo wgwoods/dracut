@@ -247,12 +247,17 @@ This parameter can be specified multiple times.
 
 .SS Network
 .TP
-.BR ip= {dhcp|on|any|dhcp6|auto6}
+.BR ip= {dhcp|on|any|dhcp6|auto6|ibft}
 dhcp|on|any: get ip from dhcp server from all interfaces. If root=dhcp, 
 loop sequentially through all interfaces (eth0, eth1, ...) and use the first 
 with a valid DHCP root-path.
+.sp
+\fBauto6\fR: IPv6 autoconfiguration
+.sp
+\fBdhcp6\fR: IPv6 DHCP
+.sp
+\fBibft\fR: iBFT autoconfiguration
 
-auto6: do IPv6 autoconfiguration
 .TP
 .BR ip= <interface>:{dhcp|on|any|dhcp6|auto6}
 dhcp|on|any|dhcp6: get ip from dhcp server on a specific interface
