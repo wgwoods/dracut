@@ -1,0 +1,1864 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- This document was created with Syntext Serna Free. --><!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" []>
+<book>
+  <title><inlinemediaobject>
+      <imageobject>
+        <imagedata valign="middle" fileref="dracut.png" format="PNG"/>
+      </imageobject>
+      <imageobject>
+        <imagedata valign="middle" fileref="dracut.svg" format="SVG"/>
+      </imageobject>
+      <imageobject>
+        <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="dracut.svg" encoding="UTF-8" parse="xml"/>
+      </imageobject>
+    </inlinemediaobject>dracut</title>
+  <bookinfo>
+    <author>
+      <firstname>Harald</firstname>
+      <surname>Hoyer</surname>
+    </author>
+    <pubdate>2010</pubdate>
+    <edition>Version 1.0</edition>
+    <copyright>
+      <year>2010</year>
+      <holder>Harald Hoyer</holder>
+    </copyright>
+    <legalnotice>
+      <para>
+ This work is licensed under the Creative Commons Attribution/Share-Alike License. To view a copy of this license, visit <ulink url="http://creativecommons.org/licenses/by-sa/3.0/">http://creativecommons.org/licenses/by-sa/3.0/</ulink> or send a letter to Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
+      </para>
+    </legalnotice>
+  </bookinfo>
+  <toc/>
+  <chapter>
+    <chapterinfo>
+      <legalnotice>
+        <para>
+   This section is a modified version of <ulink url="http://en.wikipedia.org/wiki/Initrd">http://en.wikipedia.org/wiki/Initrd</ulink>, which is licensed under the Creative Commons Attribution/Share-Alike License.
+ </para>
+      </legalnotice>
+    </chapterinfo>
+    <title>Introduction</title>
+    <section>
+      <title>Definition</title>
+      <para>An <emphasis>initial ramdisk</emphasis> is a temporary file system used in the boot process of the Linux kernel.  <emphasis>initrd</emphasis> and <emphasis>initramfs</emphasis> refer to slightly different schemes for loading this file system into memory.  Both are commonly used to make preparations before the real root file system can be mounted.</para>
+    </section>
+    <section>
+      <title>Rationale </title>
+      <para>Many Linux distributions ship a single, generic kernel image that is intended to boot as wide a variety of hardware as possible.  The device drivers for this generic kernel image are included as loadable modules, as it is not possible to statically compile them all into the one kernel without making it too large to boot from computers with limited memory or from lower-capacity media like floppy disks.
+      </para>
+      <para>This then raises the problem of detecting and loading the modules necessary to mount the root file system at boot time (or, for that matter, deducing where or what the root file system is).
+      </para>
+      <para>To further complicate matters, the root file system may be on a software <acronym>RAID</acronym> volume, <acronym>LVM</acronym>, <acronym>NFS</acronym> (on diskless workstations), or on an encrypted partition.  All of these require special preparations to mount.
+      </para>
+      <para>Another complication is kernel support for hibernation, which suspends the computer to disk by dumping an image of the entire system to a swap partition or a regular file, then powering off.  On next boot, this image has to be made accessible before it can be loaded back into memory. </para>
+      <para>To avoid having to hardcode handling for so many special cases into the kernel, an initial boot stage with a temporary root file system—now dubbed early user space—is used.  This root file system would contain user-space helpers that would do the hardware detection, module loading and device discovery necessary to get the real root file system mounted.
+      </para>
+    </section>
+    <section>
+      <title>Implementation </title>
+      <para>An image of this initial root file system (along with the kernel image) must be stored somewhere accessible by the Linux bootloader or the boot firmware of the computer.  This can be: </para>
+      <itemizedlist>
+        <listitem>
+          <para>The root file system itself </para>
+        </listitem>
+        <listitem>
+          <para>A boot image on an optical disc
+   </para>
+        </listitem>
+        <listitem>
+          <para>A small ext2/ext3 or <acronym>FAT</acronym>-formatted partition on a local disk (a <emphasis>boot partition</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>A <acronym>TFTP</acronym> server (on systems that can boot from Ethernet) </para>
+        </listitem>
+      </itemizedlist>
+      <para>The bootloader will load the kernel and initial root file system image into memory and then start the kernel, passing in the memory address of the image. 
+      </para>
+      <para>Depending on which algorithms were compiled statically into it, the kernel can currently unpack initrd/initramfs images compressed with gzip, bzip2 and <acronym>LZMA</acronym>. </para>
+    </section>
+    <section>
+      <title>Mount preparations </title>
+      <para>dracut can generate a customized initrams image which contains only whatever is necessary to boot some particular computer, such as <acronym>ATA</acronym>, <acronym>SCSI</acronym> and filesystem kernel modules (host-only mode).</para>
+      <para>dracut can also generate a more generic initramfs image (default mode).  </para>
+      <para>dracut&apos;s initramfs starts only with the device name of the root file system (or its <acronym>UUID</acronym>) and must discover everything else at boot time.  A complex cascade of tasks must be performed to get the root file system mounted: </para>
+      <itemizedlist>
+        <listitem>
+          <para>Any hardware drivers that the boot process depends on must be loaded.  All kernel modules for common storage devices are packed onto the initramfs and then udev pulls in modules matching the computer&apos;s detected hardware. </para>
+        </listitem>
+        <listitem>
+          <para>On systems which display a boot rd_NO_SPLASH screen, the video hardware must be initialized and a user-space helper started to paint animations onto the display in lockstep with the boot process. </para>
+        </listitem>
+        <listitem>
+          <para>If the root file system is on NFS, dracut does  then: <itemizedlist>
+              <listitem>
+                <para>Bring up the primary network interface. </para>
+              </listitem>
+              <listitem>
+                <para>Invoke a DHCP client, with which it can obtain a DHCP lease. </para>
+              </listitem>
+              <listitem>
+                <para>Extract the name of the NFS share and the address of the NFS server from the lease. </para>
+              </listitem>
+              <listitem>
+                <para>Mount the <acronym>NFS</acronym> share. </para>
+              </listitem>
+            </itemizedlist></para>
+        </listitem>
+        <listitem>
+          <para>If the root file system appears to be on a software <acronym>RAID</acronym> device, there is no way of knowing which devices the <acronym>RAID</acronym> volume spans; the standard <acronym>MD</acronym> utilities must be invoked to scan all available block devices with a raid signature and bring the required ones online. </para>
+        </listitem>
+        <listitem>
+          <para>If the root file system appears to be on a logical volume, the <acronym>LVM</acronym> utilities must be invoked to scan for and activate the volume group containing it. </para>
+        </listitem>
+        <listitem>
+          <para>If the root file system is on an encrypted block device: <itemizedlist>
+              <listitem>
+                <para>Invoke a helper script to prompt the user to type in a passphrase and/or insert a hardware token (such as a smart card or a <acronym>USB</acronym> security dongle). </para>
+              </listitem>
+              <listitem>
+                <para>Create a decryption target with the device mapper. </para>
+              </listitem>
+            </itemizedlist></para>
+        </listitem>
+      </itemizedlist>
+      <para>dracut uses udev, an event-driven hotplug agent, which invokes helper programs as hardware devices, disk partitions and storage volumes matching certain rules come online.  This allows discovery to run in parallel, and to progressively cascade into arbitrary nestings of <acronym>LVM</acronym>, <acronym>RAID</acronym> or encryption to get at the root file system. </para>
+      <para>When the root file system finally becomes visible: <itemizedlist>
+          <listitem>
+            <para>Any maintenance tasks which cannot run on a mounted root file system are done.  </para>
+          </listitem>
+          <listitem>
+            <para>The root file system is mounted read-only. </para>
+          </listitem>
+          <listitem>
+            <para>Any processes which must continue running (such as the rd_NO_SPLASH screen helper and its command <acronym>FIFO</acronym>) are hoisted into the newly-mounted root file system. </para>
+          </listitem>
+        </itemizedlist></para>
+      <para>The final root file system cannot simply be mounted over /, since that would make the scripts and tools on the initial root file system inaccessible for any final cleanup tasks. On an initramfs, the initial root file system cannot be rotated away. Instead, it is simply emptied and the final root file system mounted over the top.
+      </para>
+    </section>
+  </chapter>
+  <chapter>
+    <title>User Manual</title>
+    <section>
+      <title>Creating an initramfs Image</title>
+      <para>To create a initramfs image, the most simple command is:</para>
+      <screen># dracut</screen>
+      <para>This will generate a general purpose initramfs image, with all possible functionality resulting of  the combination of the installed dracut modules and system tools. The image is /boot/initramfs-<replaceable>&lt;kernel version&gt;</replaceable>.img and contains the kernel modules of the currently active kernel with version <replaceable>&lt;kernel version&gt;</replaceable>.</para>
+      <para>If the initramfs image already exists, dracut will display an error message, and to overwrite the existing image, you have to use the <option>--force</option> option. </para>
+      <screen># dracut --force</screen>
+      <para>If you want to specify another filename for the resulting image you would issue a command like:</para>
+      <screen># dracut foobar.img</screen>
+      <para>To generate an image for a specific kernel version, the command would be:</para>
+      <screen># dracut foobar.img 2.6.40-1.rc5.f20</screen>
+      <para>A shortcut to generate the image at the default location for a specific kernel version is:</para>
+      <screen># dracut &apos;&apos; 2.6.40-1.rc5.f20</screen>
+      <para>If you want to create lighter, smaller initramfs images, you may want to specify the <option>--host-only</option> or  <option>-H</option> option. Using this option, the resulting image will contain only those dracut modules, kernel modules and filesystems, which are needed to boot this specific machine. This has the drawback, that you can&apos;t put the disk on another controller or machine, and that you can&apos;t switch to another root filesystem, without recreating the initramfs image. The usage of the <option>--host-only</option> option is only for experts and you will have to keep the broken pieces. At least keep a copy of a general purpose image (and corresponding kernel) as a fallback to rescue your system.</para>
+      <section>
+        <title>Inspecting the Contents</title>
+        <para>To see the contents of the image created by dracut, you can use the <command>lsinitrd</command> tool.</para>
+        <screen># lsinitrd /boot/initramfs-$(uname -r).img | less</screen>
+        <para>To display the contents of a file in the initramfs also use the <command>lsinitrd</command> tool:</para>
+        <screen># lsinitrd /boot/initramfs-$(uname -r).img  /etc/ld.so.conf
+ include ld.so.conf.d/*.conf</screen>
+      </section>
+      <section>
+        <title>Adding dracut Modules</title>
+        <para>Some dracut modules are turned off by default and have to be activated manually. You can do this by adding the dracut modules to the configuration file <filename>/etc/dracut.conf</filename> or <filename>/etc/dracut.conf.d/myconf.conf</filename>. See the man page <xref linkend="dracutconf5"/>. You can also add dracut modules on the command line by using the <option>-a</option> or <option>--add</option> option:</para>
+        <screen># dracut --add bootchart initramfs-bootchart.img</screen>
+        <para>To see a list of available dracut modules, issue the command:</para>
+        <screen># for mod in /usr/share/dracut/modules.d/*; do echo ${mod##*/??}; done</screen>
+      </section>
+      <section>
+        <title>Omitting dracut Modules</title>
+        <para>Sometimes you don&apos;t want a dracut module to be included for reasons of speed, size or functionality. To do this, either specify the <envar>omit_dracutmodules</envar> variable in  the <filename>dracut.conf</filename> or <filename>/etc/dracut.conf.d/myconf.conf</filename> configuration file (see man page <xref linkend="dracutconf5"/>), or use the <option>-o</option> or <option>--omit</option> option on the command line:</para>
+        <screen># dracut -o &quot;multipath lvm&quot; no-multipath-lvm.img</screen>
+      </section>
+      <section>
+        <title>Adding Kernel Modules</title>
+        <para>If you need a special kernel module in the initramfs, which is not automatically picked up by dracut, you have the use the <option>--add-drivers</option> option on the command line or  the drivers vaiable in  the <filename>/etc/dracut.conf</filename> or <filename>/etc/dracut.conf.d/myconf.conf</filename> configuration file (see man page <xref linkend="dracutconf5"/>):</para>
+        <screen># dracut --add-drivers mymod initramfs-with-mymod.img</screen>
+      </section>
+    </section>
+    <section>
+      <title>Boot parameters</title>
+      <para>The generated initramfs.img file normally does not contain any system configuration files (except for some special exceptions), so the configuration has to be done on the kernel command line. With this flexibility, you can easily boot from a changed root partition, without the need to recompile the initramfs image. So, you could completly change your root partition (move it inside a md raid with encryption and LVM on top), as long as you specify the correct filesystem <varname>LABEL</varname> or <varname>UUID</varname> on the kernel command line for your root device, dracut will find it and boot from it.</para>
+      <para>The kernel command line usually can be configured in <filename>/boot/grub/grub.conf</filename>, if grub is your bootloader and it also can be edited in the real boot process in the grub menu.</para>
+      <para>The kernel command line can also be provided by the dhcp server with the root-path option. See <xref linkend="NetworkBoot"/>.</para>
+      <para>For a full reference of all kernel command line parameters, see the <xref linkend="dracutconf5"/> or <xref linkend="dracut8"/> man page.</para>
+      <section>
+        <title>Specifying the root Device</title>
+        <para>This is the only option dracut really needs to boot from your root partition. Because your root partition can live in various environments, there are a lot of formats for the <envar>root=</envar> option. The most basic one is <envar>root=<replaceable>&lt;path to device node&gt;</replaceable></envar>:</para>
+        <screen>root=/dev/sda2</screen>
+        <para>Because device node names can change, dependent on the drive ordering,  you are encouraged to use the filesystem identifier (UUID) or filesystem label (LABEL) to specify your root partition:</para>
+        <screen>root=UUID=19e9dda3-5a38-484d-a9b0-fa6b067d0331</screen>
+        <para>or</para>
+        <screen>root=LABEL=myrootpartitionlabel</screen>
+        <para>To see all <envar>UUID</envar>s or <envar>LABEL</envar>s on your system, do:</para>
+        <screen># ls -l /dev/disk/by-uuid</screen>
+        <para>or</para>
+        <screen># ls -l /dev/disk/by-label</screen>
+        <para>If your root partition is on the network see <xref linkend="NetworkBoot"/>.</para>
+      </section>
+      <section>
+        <title>Keyboard Settings</title>
+        <para>If you have to input passwords for encrypted disk volumes, you might want to set the keyboard layout and specify a display font.</para>
+        <para>A typical german kernel command would contain:</para>
+        <screen>LANG=de_DE.UTF-8 SYSFONT=latarcyrheb-sun16 KEYBOARDTYPE=pc KEYTABLE=de-latin1-nodeadkeys</screen>
+      </section>
+      <section>
+        <title>Blacklisting Kernel Modules</title>
+        <para>Sometimes it is required to prevent the automatic kernel module loading of a specific kernel module. To do this, just add <envar>rd.blacklist=<replaceable>&lt;kernel module name&gt;</replaceable></envar>, with <replaceable>&lt;kernel module name&gt;</replaceable> not containing the <filename>.ko</filename> suffix, to the kernel command line. For example:</para>
+        <screen>rdblacklist=mptsas rdblacklist=nouveau</screen>
+        <para>The option can be specified multiple times on the kernel command line.</para>
+      </section>
+      <section>
+        <title>Speeding up the Boot Process</title>
+        <para>If you want to speed up the boot process, you can specify as much information for dracut on the kernel command as possible. For example, you can tell dracut, that you root partition is not on a <acronym>LVM</acronym> volume or not on a raid partition, or that it lives inside a specific crypto <acronym>LUKS</acronym> encrypted volume. By default, dracut searches everywhere. A typical dracut kernel command line for a plain primary or logical partition would contain:</para>
+        <screen>rd_NO_LUKS rd_NO_LVM rd_NO_MD rd_NO_DM</screen>
+        <para>This turns off every automatic assembly of <acronym>LVM</acronym>, <acronym>MD</acronym> raids, <acronym>DM</acronym> raids and crypto <acronym>LUKS</acronym>.</para>
+        <para>Of course, you could also omit the dracut modules in the initramfs creation process, but then you would lose the posibility to turn it on on demand.</para>
+      </section>
+      <section id="Injecting">
+        <title>Injecting custom Files</title>
+        <para>To add your own files to the initramfs image, you have several possibilities.</para>
+        <para>The <option>--include</option> option let you specify a source path and a target path. For example</para>
+        <screen># dracut --include cmdline-preset /etc/cmdline initramfs-cmdline-pre.img</screen>
+        <para>will create an initramfs image, where the file cmdline-preset will be copied inside the initramfs to  <filename>/etc/cmdline</filename>. <option>--include</option> can only be specified once.</para>
+        <screen># mkdir overlay
+ # mkdir overlay/etc
+ # mkdir overlay/etc/conf.d
+ # echo &quot;ip=auto&quot; &gt;&gt; overlay/etc/cmdline
+ # echo export TESTVAR=testtest &gt;&gt; overlay/etc/conf.d/testvar.conf
+ # echo export TESTVAR=testtest &gt;&gt; overlay/etc/conf.d/testvar.conf
+ # tree overlay/
+ overlay/
+ └── etc
+ ├── cmdline
+ └── conf.d
+        └── testvar.conf
+ # dracut --include overlay / initramfs-overlay.img</screen>
+        <para>This will put the contents of the overlay directory into the root of the initramfs image.</para>
+        <para>The <option>--install</option> option let you specify several files, which will get installed in the initramfs image at the same location, as they are present on initramfs creation time.</para>
+        <screen># dracut --install &apos;strace fsck.ext3 ssh&apos; initramfs-dbg.img</screen>
+        <para>This will create an initramfs with the <command>strace</command>, <command>fsck.ext3</command> and <command>ssh</command> executables, together with the libraries needed to start those. The <option>--install</option> option can be specified multiple times.</para>
+      </section>
+    </section>
+    <section id="NetworkBoot">
+      <title>Network Boot</title>
+      <para>If your root partition is on a network drive, you have to have the network dracut modules installed to create a network aware initramfs image.</para>
+      <para>On a Red Hat Enterprise Linux or Fedora system, this means, you have to install the <filename>dracut-network</filename> rpm package:</para>
+      <screen># yum install dracut-network</screen>
+      <para>The resulting initramfs image can be served by a boot manager residing on your local hard drive or it can be served by a <acronym>PXE</acronym>/<acronym>TFTP</acronym> server.</para>
+      <para>How to setup your <acronym>PXE</acronym>/<acronym>TFTP</acronym> server can be found in the <ulink url="http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Storage_Administration_Guide/">Red Hat Enterprise Linux Storage Administration Guide</ulink>.</para>
+      <para>If you specify <envar>rd.ip=auto</envar> on the kernel command line,  then dracut asks a dhcp server about the ip adress for the machine. The dhcp server can also serve an additional root-path, which will set the root device for dracut.  With this mechanism, you have static configuration on your client machine and  a centralized boot configuration on your <acronym>TFTP</acronym>/<acronym>DHCP</acronym> server. If you can&apos;t pass a kernel command line, then you can inject <filename>/etc/cmdline</filename>, with a method described in <xref linkend="Injecting"/>.
+      </para>
+      <section>
+        <title>Reducing the Image Size</title>
+        <para>To reduce the size of the initramfs, you should create it with by ommitting all dracut modules, which you know, you don&apos;t need to boot the machine.</para>
+        <para>You can also specify the exact dracut and kernel modules to produce a very tiny initramfs image.</para>
+        <para>For example for a <acronym>NFS</acronym> image, you would do:</para>
+        <screen># dracut -m &quot;nfs network base&quot; initramfs-nfs-only.img</screen>
+        <para>Then you would boot from this image with your target machine and reduce the size once more by creating it  on the target machine with the <option>--host-only</option> option:</para>
+        <screen># dracut -m &quot;nfs network base&quot; --host-only initramfs-nfs-host-only.img</screen>
+        <para>This will reduce the size of the initramfs image significantly.</para>
+      </section>
+    </section>
+    <section>
+      <title>Troubleshooting</title>
+      <para>If the boot process does not succeed, you have several options to debug the situation. Some of the basic operations are covered here. For more information you should also visit:  <ulink url="http://fedoraproject.org/wiki/How_to_debug_Dracut_problems">http://fedoraproject.org/wiki/How_to_debug_Dracut_problems</ulink></para>
+      <section id="identifying-your-problem-area">
+        <title>Identifying your problem area</title>
+        <orderedlist>
+          <listitem>
+            <para>Remove &apos;&apos;rhgb&apos;&apos; and &apos;&apos;quiet&apos;&apos; from the kernel command line
+     </para>
+          </listitem>
+          <listitem>
+            <para>Add &apos;&apos;rdshell&apos;&apos; to the kernel command line.  This will present a shell should dracut be unable to locate your root device
+     </para>
+          </listitem>
+          <listitem>
+            <para>Add &apos;&apos;rdshell rdinitdebug&apos;&apos; to the kernel command line so that dracut shell commands are printed as they are executed
+     </para>
+          </listitem>
+          <listitem>
+            <para>With dracut &gt;= 002-11, you can inspect the rdinitdebug output with:
+     </para>
+            <screen># less /init.log
+     # dmesg | less</screen>
+          </listitem>
+        </orderedlist>
+      </section>
+      <section id="information-to-include-in-your-report">
+        <title id="information-to-include-in-your-report-title">Information to include in your report</title>
+        <section id="all-bug-reports">
+          <title id="all-bug-reports-title">All bug reports</title>
+          <para>In all cases, the following should be mentioned and attached to your bug report:
+   </para>
+          <itemizedlist>
+            <listitem>
+              <para>The exact kernel command-line used.  Typically from the bootloader configuration file (e.g. <filename>/etc/grub.conf</filename>) or from <filename>/proc/cmdline</filename>.</para>
+            </listitem>
+            <listitem>
+              <para>A copy of your disk partition information from <filename>/etc/fstab</filename>, which might be obtained booting an old working initramfs or a rescue medium.</para>
+            </listitem>
+            <listitem>
+              <para>A device listing from device-mapper.  This can be obtained by running the command <screen># dmsetup ls --tree</screen></para>
+            </listitem>
+            <listitem>
+              <para>A list of block device attributes including vol_id compatible mode.  This can be obtained by running the commands: <screen># blkid -p
+       # blkid -p -o udev</screen></para>
+            </listitem>
+            <listitem>
+              <para>Turn on dracut debugging (see <filename>the &apos;debugging dracut&apos; section</filename>), and attach all relevant information from the boot log.  This can be obtained by running the command <screen># dmesg|grep dracut</screen></para>
+            </listitem>
+            <listitem>
+              <para>If you use a dracut configuration file, please include <filename>/etc/dracut.conf</filename>
+       and all files in <filename>/etc/dracut.conf.d/*.conf</filename></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section id="logical-volume-management-related-problems">
+          <title id="logical-volume-management-related-problems-title">Logical Volume Management related problems</title>
+          <para>As well as the information from <xref linkend="all-bug-reports"/> include the following information:
+   </para>
+          <itemizedlist>
+            <listitem>
+              <para>Include physical volume information by running the command: <screen># lvm pvdisplay</screen></para>
+            </listitem>
+            <listitem>
+              <para>Include volume group information by running the command: <screen># lvm vgdisplay</screen></para>
+            </listitem>
+            <listitem>
+              <para>Include logical volume information by running the command: <screen># lvm lvdisplay</screen></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section id="software-raid-related-problems">
+          <title id="software-raid-related-problems-title">Software RAID related problems</title>
+          <para>As well as the information from <xref linkend="all-bug-reports"/>, include the following information:
+   </para>
+          <itemizedlist>
+            <listitem>
+              <para>If using software RAID disk partitions, please include the output of <screen># cat /proc/mdstat</screen></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section id="network-root-device-related-problems">
+          <title id="network-root-device-related-problems-title">Network root device related problems</title>
+          <para>This section details information to include when experiencing problems on a system whose root device is located on a network attached volume (e.g. iSCSI, NFS or NBD).  As well as the information from <xref linkend="all-bug-reports"/>, include the following information:
+   </para>
+          <itemizedlist>
+            <listitem>
+              <para>Please include the output of  <screen># /sbin/ifup <replaceable>&lt;interfacename&gt;</replaceable>
+       # ip addr show</screen></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+      </section>
+      <section id="debugging-dracut">
+        <title id="debugging-dracut-title">Debugging dracut</title>
+        <section id="configure-a-serial-console">
+          <title id="configure-a-serial-console-title">Configure a serial console</title>
+          <para>Successfully debugging dracut will require some form of console logging during the system boot.  This section documents configuring a serial console connection to record boot messages.
+   </para>
+          <orderedlist>
+            <listitem>
+              <para>First, enable serial console output for both the kernel and the bootloader.
+       </para>
+            </listitem>
+            <listitem>
+              <para>Open the file <filename>/etc/grub.conf</filename> for editing.  Below the line &apos;&apos;timeout=5&apos;&apos;, add the following:
+       <screen>serial --unit=0 --speed=9600
+       terminal --timeout=5 serial console</screen></para>
+            </listitem>
+            <listitem>
+              <para>Also in <filename>/etc/grub.conf</filename>, add the following boot arguemnts to the &apos;&apos;kernel&apos;&apos; line:
+       <screen>console=tty0 console=ttyS0,9600</screen></para>
+            </listitem>
+            <listitem>
+              <para>When finished, the <filename>/etc/grub.conf</filename> file should look similar to the example below.
+       <screen>default=0
+       timeout=5
+       serial --unit=0 --speed=9600
+       terminal --timeout=5 serial console
+       title Fedora (2.6.29.5-191.fc11.x86_64)
+       root (hd0,0)
+       kernel /vmlinuz-2.6.29.5-191.fc11.x86_64 ro root=/dev/mapper/vg_uc1-lv_root console=tty0 console=ttyS0,9600
+       initrd /dracut-2.6.29.5-191.fc11.x86_64.img</screen></para>
+            </listitem>
+            <listitem>
+              <para>More detailed information on how to configure the kernel for console output can be found at <ulink url="http://www.faqs.org/docs/Linux-HOWTO/Remote-Serial-Console-HOWTO.html#CONFIGURE-KERNEL">http://www.faqs.org/docs/Linux-HOWTO/Remote-Serial-Console-HOWTO.html#CONFIGURE-KERNEL</ulink>.
+       </para>
+            </listitem>
+          </orderedlist>
+          <note>
+            <title>Redirecting non-interactive output</title>
+            <para>You can redirect all non-interactive output to <filename>/dev/kmsg</filename> and the kernel will put it out on the console when it reaches the kernel buffer by doing<screen># exec &gt;/dev/kmsg 2&gt;&amp;1 &lt;/dev/console</screen></para>
+          </note>
+        </section>
+        <section id="using-the-dracut-shell">
+          <title id="using-the-dracut-shell-title">Using the dracut shell</title>
+          <para>Dracut offers a shell for interactive debugging in the event dracut fails to locate your root filesystem.  To enable the shell:
+   <orderedlist>
+              <listitem>
+                <para>Add the boot parameter &apos;&apos;rdshell&apos;&apos; to your bootloader configuration file (e.g. <filename>/etc/grub.conf</filename>)</para>
+              </listitem>
+              <listitem>
+                <para>Remove the boot arguments &apos;&apos;rhgb&apos;&apos; and &apos;&apos;quiet&apos;&apos;
+       </para>
+                <para>
+  A sample <filename>/etc/grub.conf</filename> bootloader configuration file is listed below. 
+       </para>
+                <para><screen>default=0
+       timeout=5
+       serial --unit=0 --speed=9600
+       terminal --timeout=5 serial console
+       title Fedora (2.6.29.5-191.fc11.x86_64)
+       root (hd0,0)
+       kernel /vmlinuz-2.6.29.5-191.fc11.x86_64 ro root=/dev/mapper/vg_uc1-lv_root console=tty0 rdshell 
+       initrd /dracut-2.6.29.5-191.fc11.x86_64.img</screen></para>
+              </listitem>
+              <listitem>
+                <para>If system boot fails, you will be dropped into a shell as seen in the example below.
+       <screen>No root device found 
+       Dropping to debug shell.
+
+       sh: can&apos;t access tty; job control turned off
+
+       # </screen></para>
+              </listitem>
+              <listitem>
+                <para>Use this shell prompt to gather the information requested above (see <xref linkend="all-bug-reports"/>).
+       </para>
+              </listitem>
+            </orderedlist></para>
+        </section>
+        <section id="accessing-the-root-volume-from-the-dracut-shell">
+          <title id="accessing-the-root-volume-from-the-dracut-shell-title">Accessing the root volume from the dracut shell</title>
+          <para>From the dracut debug shell, you can manually perform the task of locating and preparing your root volume for boot.  The required steps will depend on how your root volume is configured.  Common scenarios include:
+   </para>
+          <itemizedlist>
+            <listitem>
+              <para>A block device (e.g. <filename>/dev/sda7</filename>)
+       </para>
+            </listitem>
+            <listitem>
+              <para>A LVM logical volume (e.g. <filename>/dev/VolGroup00/LogVol00</filename>)
+       </para>
+            </listitem>
+            <listitem>
+              <para>An encrypted device (e.g. <filename>/dev/mapper/luks-4d5972ea-901c-4584-bd75-1da802417d83</filename>)
+       </para>
+            </listitem>
+            <listitem>
+              <para>A network attached device (e.g. netroot=iscsi:@192.168.0.4::3260::iqn.2009-02.org.fedoraproject:for.all)
+       </para>
+            </listitem>
+          </itemizedlist>
+          <para>The exact method for locating and preparing will vary. However, to continue with a successful boot, the objective is to locate your root volume and create a symlink <filename>/dev/root</filename> which points to the file system. For example, the following example demonstrates accessing and booting a root volume that is an encrypted LVM Logical volume. </para>
+          <orderedlist>
+            <listitem>
+              <para>Inspect your partitions using <command>parted</command><screen># parted /dev/sda -s p
+       Model: ATA HTS541060G9AT00 (scsi)
+       Disk /dev/sda: 60.0GB
+       Sector size (logical/physical): 512B/512B
+       Partition Table: msdos
+       Number  Start   End     Size    Type      File system  Flags
+       1      32.3kB  10.8GB  107MB   primary   ext4         boot
+       2      10.8GB  55.6GB  44.7GB  logical                lvm</screen></para>
+            </listitem>
+            <listitem>
+              <para>You recall that your root volume was a LVM logical volume.  Scan and activate any logical volumes.
+       <screen># lvm vgscan
+       # lvm vgchange -ay</screen></para>
+            </listitem>
+            <listitem>
+              <para>You should see any logical volumes now using the command <command>blkid</command>:
+       <screen># blkid
+       /dev/sda1: UUID=&quot;3de247f3-5de4-4a44-afc5-1fe179750cf7&quot; TYPE=&quot;ext4&quot;
+       /dev/sda2: UUID=&quot;Ek4dQw-cOtq-5MJu-OGRF-xz5k-O2l8-wdDj0I&quot; TYPE=&quot;LVM2_member&quot;
+       /dev/mapper/linux-root: UUID=&quot;def0269e-424b-4752-acf3-1077bf96ad2c&quot; TYPE=&quot;crypto_LUKS&quot;
+       /dev/mapper/linux-home: UUID=&quot;c69127c1-f153-4ea2-b58e-4cbfa9257c5e&quot; TYPE=&quot;ext3&quot;
+       /dev/mapper/linux-swap: UUID=&quot;47b4d329-975c-4c08-b218-f9c9bf3635f1&quot; TYPE=&quot;swap&quot;
+       </screen></para>
+            </listitem>
+            <listitem>
+              <para>From the output above, you recall that your root volume exists on an encrypted block device.  Following the guidance disk encryption guidance from the Installation Guide, you unlock your encrypted root volume.
+       <screen># UUID=$(cryptsetup luksUUID /dev/mapper/linux-root)
+       # cryptsetup luksOpen /dev/mapper/linux-root luks-$UUID
+       Enter passphrase for /dev/mapper/linux-root:
+       Key slot 0 unlocked. </screen></para>
+            </listitem>
+            <listitem>
+              <para>Next, make a symbolic link to the unlocked root volume
+       <screen># ln -s /dev/mapper/luks-$UUID /dev/root</screen></para>
+            </listitem>
+            <listitem>
+              <para>With the root volume available, you may continue booting the system by exiting the dracut shell
+       <screen># exit</screen></para>
+            </listitem>
+          </orderedlist>
+        </section>
+        <section id="additional-dracut-boot-parameters">
+          <title id="additional-dracut-boot-parameters-title">Additional dracut boot parameters</title>
+          <para>For more debugging options, see <xref linkend="dracut-kernel-debug"/> in the man page <xref linkend="dracutkernel7"/>.</para>
+        </section>
+      </section>
+    </section>
+  </chapter>
+  <appendix>
+    <title>Man Pages</title>
+    <section id="dracut.man">
+      <title>dracut</title>
+      <refentry id="dracut8">
+        <refentryinfo>
+          <title>dracut</title>
+          <productname>dracut</productname>
+          <authorgroup>
+            <author>
+              <contrib>Project Leader, Developer</contrib>
+              <firstname>Harald</firstname>
+              <surname>Hoyer</surname>
+              <email>harald@redhat.com</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Victor</firstname>
+              <surname>Lowther</surname>
+              <email>victor.lowther@gmail.com</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Warren</firstname>
+              <surname>Togami</surname>
+              <email>wtogami@redhat.com</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Jeremy</firstname>
+              <surname>Katz</surname>
+              <email>katzj@redhat.com</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Philippe</firstname>
+              <surname>Seewer</surname>
+              <email>philippe.seewer@bfh.ch</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>David</firstname>
+              <surname>Dillow</surname>
+              <email>dave@thedillows.org</email>
+            </author>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Amadeusz</firstname>
+              <surname>Żołnowski</surname>
+              <email>aidecoe@aidecoe.name</email>
+            </author>
+          </authorgroup>
+        </refentryinfo>
+        <refmeta>
+          <refentrytitle>dracut</refentrytitle>
+          <manvolnum>8</manvolnum>
+          <refmiscinfo class="version"/>
+        </refmeta>
+        <refnamediv>
+          <refname>dracut</refname>
+          <refpurpose>create initial ramdisk images for preloading modules</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <cmdsynopsis>
+            <command>dracut</command>
+            <arg choice="opt" rep="repeat">
+              <replaceable>OPTION</replaceable>
+            </arg>
+            <arg choice="opt">
+              <replaceable>&lt;image&gt;</replaceable>
+              <arg choice="opt">
+                <replaceable>&lt;kernel-version&gt;</replaceable>
+              </arg>
+            </arg>
+            <sbr/>
+          </cmdsynopsis>
+        </refsynopsisdiv>
+        <refsect1>
+          <title>Description</title>
+          <para><command>dracut</command>
+   creates an initial image used by the kernel for
+   preloading the block device modules (such as IDE, SCSI or RAID)
+   which are needed to access the root filesystem.</para>
+          <para>
+     For a complete list of kernel command line options see
+     <citerefentry>
+              <refentrytitle>dracut.kernel</refentrytitle>
+              <manvolnum>7</manvolnum>
+            </citerefentry>
+   </para>
+          <refsect2>
+            <title>Options</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <option>-f</option>
+                </term>
+                <term>
+                  <option>--force</option>
+                </term>
+                <listitem>
+                  <para>overwrite existing initramfs file.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-m</option>
+                </term>
+                <term>
+                  <option>--modules&nbsp;<replaceable>&lt;list of dracut modules&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify a space-separated list of dracut modules to call 
+    when building the initramfs. 
+    Modules are located in 
+    <filename>/usr/share/dracut/modules.d</filename>. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-o</option>
+                </term>
+                <term>
+                  <option>--omit&nbsp;<replaceable>&lt;list of dracut modules&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>omit a space-separated list of dracut modules. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-a</option>
+                </term>
+                <term>
+                  <option>--add&nbsp;<replaceable>&lt;list of dracut modules&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>add a space-separated list of dracut modules to the default set of modules. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-d</option>
+                </term>
+                <term>
+                  <option>--drivers&nbsp;<replaceable>&lt;list of kernel modules&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify a space-separated list of kernel modules to exclusively include
+    in the initramfs.
+    The kernel modules have to be specified without the &quot;.ko&quot; suffix. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--add-drivers&nbsp;<replaceable>&lt;list of kernel modules&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify a space-separated list of kernel modules to add to the initramfs.
+    The kernel modules have to be specified without the &quot;.ko&quot; suffix. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--filesystems&nbsp;<replaceable>&lt;list of filesystems&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify a space-separated list of kernel filesystem modules to exclusively 
+    include in the generic initramfs. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-k</option>
+                </term>
+                <term>
+                  <option>--kmoddir&nbsp;<replaceable>&lt;kernel directory&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify the directory, where to look for kernel modules</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option> --fwdir&nbsp;<replaceable>&lt;dir&gt;[:&lt;dir&gt;...]</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify additional directories, where to look for firmwares. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--kernel-only</option>
+                </term>
+                <listitem>
+                  <para>only install kernel drivers and firmware files</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--no-kernel</option>
+                </term>
+                <listitem>
+                  <para>do not install kernel drivers and firmware files</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--mdadmconf</option>
+                </term>
+                <listitem>
+                  <para>include local <filename>/etc/mdadm.conf</filename></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--nomdadmconf</option>
+                </term>
+                <listitem>
+                  <para>do not include local <filename>/etc/mdadm.conf</filename></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--strip</option>
+                </term>
+                <listitem>
+                  <para>strip binaries in the initramfs (default)</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--nostrip</option>
+                </term>
+                <listitem>
+                  <para>do not strip binaries in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-h</option>
+                </term>
+                <term>
+                  <option>--help</option>
+                </term>
+                <listitem>
+                  <para>display help text and exit.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--debug</option>
+                </term>
+                <listitem>
+                  <para>output debug information of the build process</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-v</option>
+                </term>
+                <term>
+                  <option>--verbose</option>
+                </term>
+                <listitem>
+                  <para>verbose output during the build process</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-c</option>
+                </term>
+                <term>
+                  <option>--conf&nbsp;<replaceable>&lt;dracut configuration file&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify configuration file to use.
+    Default: 
+    <filename>/etc/dracut.conf</filename></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--confdir&nbsp;<replaceable>&lt;configuration directory&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>specify configuration directory to use.
+    Default: 
+    <filename>/etc/dracut.conf.d</filename></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-l</option>
+                </term>
+                <term>
+                  <option>--local</option>
+                </term>
+                <listitem>
+                  <para>activates the local mode. dracut will use modules from the current working
+    directory instead of the system-wide installed modules in
+    <filename>/usr/share/dracut/modules.d</filename>.
+    This is useful when running dracut from a git checkout.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-H</option>
+                </term>
+                <term>
+                  <option>--hostonly</option>
+                </term>
+                <listitem>
+                  <para>Host-Only mode: Install only what is needed for booting 
+    the local host instead of a generic host. 
+    <warning>
+                      <para>If chrooted to another root other than the real root device, use &quot;--fstab&quot; and provide a valid <filename>/etc/fstab</filename>.</para>
+                    </warning></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>--fstab</option>
+                </term>
+                <listitem>
+                  <para>Use <filename>/etc/fstab</filename> instead of <filename>/proc/self/mountinfo</filename>.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-i</option>
+                </term>
+                <term>
+                  <option>--include&nbsp;<replaceable>&lt;source directory&gt;</replaceable>&nbsp;<replaceable>&lt;target directory&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>include the files in the source directory into the
+    target directory in the final initramfs.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <option>-I</option>
+                </term>
+                <term>
+                  <option>--install&nbsp;<replaceable>&lt;file list&gt;</replaceable></option>
+                </term>
+                <listitem>
+                  <para>install the space separated list of files into the initramfs.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+        </refsect1>
+        <refsect1>
+          <title>Files</title>
+          <variablelist>
+            <varlistentry>
+              <term>
+                <filename>/var/log/dracut.log</filename>
+              </term>
+              <listitem>
+                <para>logfile of initramfs image creation</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <filename>/tmp/dracut.log</filename>
+              </term>
+              <listitem>
+                <para>logfile of initramfs image creation, if <filename>/var/log/dracut.log</filename> is not writable</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <filename>/etc/dracut.conf</filename>
+              </term>
+              <listitem>
+                <para>see <citerefentry>
+                    <refentrytitle>dracut.conf</refentrytitle>
+                    <manvolnum>5</manvolnum>
+                  </citerefentry></para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <filename>/etc/dracut.conf.d/*.conf</filename>
+              </term>
+              <listitem>
+                <para>see <citerefentry>
+                    <refentrytitle>dracut.conf</refentrytitle>
+                    <manvolnum>5</manvolnum>
+                  </citerefentry></para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <refsect2>
+            <title>Configuration in the Initramfs</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <filename>/conf/conf.d/</filename>
+                </term>
+                <listitem>
+                  <para>Any files found in <filename>/conf/conf.d/</filename> will be sourced in the initramfs to 
+    set initial values. Command line options will override these values 
+    set in the configuration files.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <filename>/etc/cmdline</filename>
+                </term>
+                <listitem>
+                  <para>Can contain additional command line options.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+        </refsect1>
+        <refsect1>
+          <title>Availability</title>
+          <para>The dracut command is part of the dracut package and is available from
+   <ulink url="http://sourceforge.net/apps/trac/dracut/wiki">http://sourceforge.net/apps/trac/dracut/wiki</ulink></para>
+        </refsect1>
+        <refsect1>
+          <title>See Also</title>
+          <para>
+     <citerefentry>
+              <refentrytitle>dracut.kernel</refentrytitle>
+              <manvolnum>7</manvolnum>
+            </citerefentry>
+     <citerefentry>
+              <refentrytitle>dracut.conf</refentrytitle>
+              <manvolnum>5</manvolnum>
+            </citerefentry>
+   </para>
+        </refsect1>
+      </refentry>
+    </section>
+    <section id="dracut.conf">
+      <title>dracut.conf</title>
+      <refentry id="dracutconf5">
+        <refentryinfo>
+          <title>dracut.conf</title>
+          <productname>dracut</productname>
+          <authorgroup>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Harald</firstname>
+              <surname>Hoyer</surname>
+              <email>harald@redhat.com</email>
+            </author>
+          </authorgroup>
+        </refentryinfo>
+        <refmeta>
+          <refentrytitle>dracut.conf</refentrytitle>
+          <manvolnum>5</manvolnum>
+        </refmeta>
+        <refnamediv>
+          <refname>dracut.conf</refname>
+          <refpurpose>configuration file(s) for dracut</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <cmdsynopsis>
+            <command>/etc/dracut.conf</command>
+            <arg choice="plain">
+              <replaceable>/etc/dracut.conf.d/*.conf</replaceable>
+            </arg>
+            <sbr/>
+          </cmdsynopsis>
+        </refsynopsisdiv>
+        <refsect1>
+          <title>Description</title>
+          <para><filename>dracut.conf</filename>
+   is loaded during the initialisation phase of dracut.
+   Command line parameter will overwrite any values set here.
+   <emphasis><filename>dracut.conf.d/*.conf</filename> files are read in alphanumerical order and will</emphasis>
+   overwrite parameters set in <filename>/etc/dracut.conf</filename>. Each line specifies an attribute and a value. A &apos;#&apos; indicates the beginning of a comment; following characters, up to the end of the line are not interpreted.</para>
+          <variablelist>
+            <varlistentry>
+              <term>
+                <envar>dracutmodules+=&quot;&nbsp;<replaceable>&lt;dracut modules&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify a space-separated list of dracut modules to
+  call when building the initramfs. Modules are located
+  in <filename>/usr/share/dracut/modules.d</filename>.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>omit_dracutmodules+=&quot;&nbsp;<replaceable>&lt;dracut modules&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Omit a space-separated list of dracut modules.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>add_dracutmodules+=&quot;&nbsp;<replaceable>&lt;dracut modules&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Add a space-separated list of dracut modules.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>drivers+=&quot;&nbsp;<replaceable>&lt;kernel modules&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify a space-separated list of kernel modules to
+  exclusively include in the initramfs.
+  The kernel modules have to be specified without the &quot;.ko&quot; suffix.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>add_drivers+=&quot;&nbsp;<replaceable>&lt;kernel modules&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify a space-separated list of kernel 
+  modules to add to the initramfs.
+  The kernel modules have to be specified without the &quot;.ko&quot; suffix.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>filesystems+=&quot;&nbsp;<replaceable>&lt;filesystem names&gt;</replaceable>&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify a space-separated list of kernel filesystem
+  modules to exclusively include in the generic
+  initramfs.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>drivers_dir=&quot;<replaceable>&lt;kernel modules directory&gt;</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify the directory, where to look for kernel modules</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>fw_dir+=&quot;&#160;:<replaceable>&lt;dir&gt;</replaceable>[:<replaceable>&lt;dir&gt;</replaceable>&nbsp;...]&nbsp;&quot;</envar>
+              </term>
+              <listitem>
+                <para>Specify additional directories, where to look for firmwares, separated by <constant>:</constant></para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>do_strip=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Strip binaries in the initramfs (default=yes)</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>hostonly=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Host-Only mode: Install only what is needed for booting 
+  the local host instead of a generic host.
+  <warning>
+                    <para>If chrooted to another root other than the real root device, use <option>--fstab</option> and provide a valid <filename>/etc/fstab</filename>.</para>
+                  </warning>
+  </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>use_fstab=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Use <filename>/etc/fstab</filename> instead of <filename>/proc/self/mountinfo</filename>.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>mdadmconf=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Include local <filename>/etc/mdadm.conf</filename> (default=yes)</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>lvmconf=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Include local <filename>/etc/lvm/lvm.conf</filename> (default=yes)</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>kernel_only=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Only install kernel drivers and firmware files. (default=no)</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <envar>no_kernel=&quot;<replaceable>{yes|no}</replaceable>&quot;</envar>
+              </term>
+              <listitem>
+                <para>Do not install kernel drivers and firmware files (default=no)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </refsect1>
+        <refsect1>
+          <title>Files</title>
+          <variablelist>
+            <varlistentry>
+              <term>
+                <filename>/etc/dracut/conf.d/</filename>
+              </term>
+              <listitem>
+                <para>Any <filename>/etc/dracut/conf.d/*.conf</filename> file can overwrite the values in <filename>/etc/dracut.conf</filename>.
+  The configuration files are read in alphanumerical order.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </refsect1>
+        <refsect1>
+          <title>See Also</title>
+          <para><citerefentry>
+              <refentrytitle>dracut</refentrytitle>
+              <manvolnum>8</manvolnum>
+            </citerefentry>
+   <citerefentry>
+              <refentrytitle>dracut.kernel</refentrytitle>
+              <manvolnum>7</manvolnum>
+            </citerefentry>
+   </para>
+        </refsect1>
+      </refentry>
+    </section>
+    <section id="dracut.kernel">
+      <title>dracut.kernel</title>
+      <refentry id="dracutkernel7">
+        <refentryinfo>
+          <title>dracut.kernel</title>
+          <productname>dracut</productname>
+          <authorgroup>
+            <author>
+              <contrib>Developer</contrib>
+              <firstname>Harald</firstname>
+              <surname>Hoyer</surname>
+              <email>harald@redhat.com</email>
+            </author>
+          </authorgroup>
+        </refentryinfo>
+        <refmeta>
+          <refentrytitle>dracut.kernel</refentrytitle>
+          <manvolnum>7</manvolnum>
+          <refmiscinfo class="version"/>
+        </refmeta>
+        <refnamediv>
+          <refname>dracut.kernel</refname>
+          <refpurpose>dracut kernel command line options</refpurpose>
+        </refnamediv>
+        <refsect1>
+          <title>Description</title>
+          <para>The root filesystem used by the kernel is specified in the boot configuration
+   file, as always. The traditional <emphasis remap="B">root=/dev/hda1</emphasis> style device 
+   specification is allowed. If a label is used, as in <emphasis remap="B">root=LABEL=rootPart</emphasis>
+   the initramfs will search all available devices for an ext2 or ext3 filesystem
+   with the appropriate label, and mount that device as the root filesystem.
+   <emphasis remap="B">root=UUID=uuidnumber</emphasis> will mount the partition with that UUID as the 
+   root filesystem.</para>
+          <refsect2>
+            <title>Standard</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>init=<replaceable>&lt;path to real init&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para> </para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>root=<replaceable>&lt;path to blockdevice&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>specify blockdevice to use as root filesystem. 
+    e.g.: <programlisting>root=/dev/sda1
+    root=/dev/disk/by-path/pci-0000:00:1f.1-scsi-0:0:1:0-part1     </programlisting></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rootfstype=<replaceable>&lt;filesystem type&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>&quot;auto&quot; if not specified, e.g.: <programlisting>rootfstype=ext3</programlisting></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rootflags=<replaceable>&lt;mount options&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>specify additional mount options for the root filesystem. If not set, <filename>/etc/fstab</filename>
+    of the real root will be parsed for special mount options and mounted 
+    accordingly.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>Misc</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rdblacklist=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>do not load kernel module &lt;drivername&gt;
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdloaddriver=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>force loading kernel module &lt;drivername&gt;
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdrdinsmodpost=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>force loading kernel module &lt;drivername&gt; after all automatic loading modules have been loaded. This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2 id="dracut-kernel-debug">
+            <title>Debug</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rdinfo</envar>
+                </term>
+                <listitem>
+                  <para>print informational output though &quot;quiet&quot; is set</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdshell</envar>
+                </term>
+                <listitem>
+                  <para>allow dropping to a shell, if root mounting fails</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdinitdebug</envar>
+                </term>
+                <listitem>
+                  <para>set -x for the dracut shell and logs to dmesg, console and <filename>/init.log</filename></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdbreak</envar>
+                </term>
+                <listitem>
+                  <para>drop to a shell at the end</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdbreak=</envar>
+                  <replaceable>{cmdline|pre-udev|pre-trigger|initqueue|pre-mount|mount|pre-pivot}</replaceable>
+                </term>
+                <listitem>
+                  <para>drop to a shell on defined breakpoint</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdudevinfo</envar>
+                </term>
+                <listitem>
+                  <para>set udev to loglevel info</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rdudevdebug</envar>
+                </term>
+                <listitem>
+                  <para>set udev to loglevel debug</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>I18N</title>
+            <para>e.g.<programlisting>LANG=en_US.UTF-8
+SYSFONT=latarcyrheb-sun16
+KEYTABLE=de-latin1-nodeadkeys</programlisting></para>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>KEYBOARDTYPE=</envar>
+                  <replaceable>sun|pc</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/keyboard in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>KEYTABLE=</envar>
+                  <replaceable>&lt;keytable filename&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/keyboard in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>SYSFONT=</envar>
+                  <replaceable>&lt;console font&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/i18n in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>SYSFONTACM=</envar>
+                  <replaceable>&lt;console font map&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/i18n in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>UNIMAP=</envar>
+                  <replaceable>&lt;unicode font map&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/i18n in the initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>LANG=</envar>
+                  <replaceable>&lt;locale&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>will be written to /etc/sysconfig/i18n in the initramfs</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>LVM</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_LVM</envar>
+                </term>
+                <listitem>
+                  <para>disable LVM detection</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_LVM.vg=<replaceable>&lt;volume group name&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>only activate the volume groups with the given name
+    <envar>rd_NO_LVM.vg</envar> can be specified multiple times on the kernel command line.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_LVM_LV=<replaceable>&lt;logical volume name&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>only activate the logical volumes with the given name
+    <envar>rd_LVM_LV</envar> can be specified multiple times on the kernel command line.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_LVMCONF</envar>
+                 </term>
+                <listitem>
+                  <para>remove any <filename>/etc/lvm/lvm.conf</filename>, which may exist in the initramfs</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>crypto LUKS</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_LUKS</envar>
+                </term>
+                <listitem>
+                  <para>disable crypto LUKS detection</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_LUKS_UUID=<replaceable>&lt;luks uuid&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>only activate the LUKS partitions with the given UUID
+    Any &quot;luks-&quot; of the LUKS UUID is removed before comparing to <replaceable>&lt;luks uuid&gt;</replaceable>.
+    The comparisons also matches, if <replaceable>&lt;luks uuid&gt;</replaceable> is only the beginning of the 
+    LUKS UUID, so you don&apos;t have to specify the full UUID.
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_CRYPTTAB</envar>
+                 </term>
+                <listitem>
+                  <para>do not check, if LUKS partition is in <filename>/etc/crypttab</filename></para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>MD</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_MD</envar>
+                </term>
+                <listitem>
+                  <para>disable MD RAID detection</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_MDIMSM</envar>
+                </term>
+                <listitem>
+                  <para>disable MD RAID for imsm/isw raids, use DM RAID instead</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_MDADMCONF</envar>
+                 </term>
+                <listitem>
+                  <para>ignore mdadm.conf included in initramfs</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_MD_UUID=<replaceable>&lt;md raid uuid&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>only activate the raid sets with the given UUID.
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>DM RAID</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>rd_NO_DM</envar>=0</term>
+                <listitem>
+                  <para>disable DM RAID detection</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_DM_UUID=<replaceable>&lt;dm raid uuid&gt;</replaceable></envar>
+                </term>
+                <listitem>
+                  <para>only activate the raid sets with the given UUID.
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>Network</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>ip=</envar>
+                  <replaceable>{dhcp|on|any|dhcp6|auto6}</replaceable>
+                </term>
+                <listitem>
+                  <para>dhcp|on|any: get ip from dhcp server from all interfaces. If root=dhcp, 
+    loop sequentially through all interfaces (eth0, eth1, ...) and use the first 
+    with a valid DHCP root-path.</para>
+                  <para><constant>auto6</constant>: IPv6 autoconfiguration</para>
+                  <para><constant>dhcp6</constant>: IPv6 DHCP</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term><envar>ip=</envar><replaceable>&lt;interface&gt;</replaceable>:<replaceable>{dhcp|on|any|dhcp6|auto6}</replaceable></term>
+                <listitem>
+                  <para>dhcp|on|any|dhcp6: get ip from dhcp server on a specific interface
+    auto6: do IPv6 autoconfiguration
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term><envar>ip=</envar><replaceable>&lt;client-IP&gt;</replaceable>:<optional>
+                    <replaceable>&lt;server-id&gt;</replaceable>
+                  </optional>:<replaceable>&lt;gateway-IP&gt;</replaceable>:<replaceable>&lt;netmask&gt;</replaceable>:<replaceable>&lt;client_hostname&gt;</replaceable>:<replaceable>&lt;interface&gt;</replaceable>:<replaceable>{none|off}</replaceable></term>
+                <listitem>
+                  <para>explicit network configuration. If you want do define a IPv6 address, put it in brackets (e.g. [2001:DB8::1]).
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term><envar>ifname=</envar><replaceable>&lt;interface&gt;</replaceable>:<replaceable>&lt;MAC&gt;</replaceable></term>
+                <listitem>
+                  <para>Assign network device name &lt;interface&gt; (ie eth0) to the NIC with MAC &lt;MAC&gt;.
+    Note letters in the MAC-address must be lowercase!
+    <remark>Note: If you use this option you <emphasis remap="B">must</emphasis> specify an ifname= argument for all interfaces used in ip= or fcoe= arguments.</remark>
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>bootdev=</envar>
+                  <replaceable>&lt;interface&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>specify network interface to use routing and netroot information from. 
+    Required if multiple ip= lines are used.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>nameserver=</envar>
+                  <replaceable>&lt;IP&gt;</replaceable>
+                  <optional><envar>nameserver</envar>=<replaceable>&lt;IP&gt;</replaceable> ...</optional>
+                </term>
+                <listitem>
+                  <para>specify nameserver(s) to use</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>biosdevname=</envar>
+                  <replaceable>{0|1}</replaceable>
+                </term>
+                <listitem>
+                  <para>turn on/off biosdevname network interface renaming</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>NFS</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>root=</envar>
+                  <optional><replaceable>&lt;server-ip&gt;</replaceable>:</optional>
+                  <replaceable>&lt;root-dir&gt;</replaceable>
+                  <optional>:<replaceable>&lt;nfs-options&gt;</replaceable></optional>
+                </term>
+                <listitem>
+                  <para>mount nfs share from &lt;server-ip&gt;:/&lt;root-dir&gt;, if no server-ip is given,
+    use dhcp next_server. if server-ip is an IPv6 address it has to be put in brackets, e.g. [2001:DB8::1].
+    NFS options can be appended with the prefix &quot;:&quot; or &quot;,&quot; and are seperated by &quot;,&quot;.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term><envar>root=</envar><constant>nfs</constant>:<optional><replaceable>&lt;server-ip&gt;</replaceable>:</optional><replaceable>&lt;root-dir&gt;</replaceable><optional>:<replaceable>&lt;nfs-options&gt;</replaceable></optional></term>
+                <term><envar>root=</envar>nfs4:<optional><replaceable>&lt;server-ip&gt;</replaceable>:</optional><replaceable>&lt;root-dir&gt;</replaceable><optional>:<replaceable>&lt;nfs-options&gt;</replaceable></optional></term>
+                <term>
+                  <envar>root=</envar>
+                  <replaceable>{dhcp|dhcp6}</replaceable>
+                </term>
+                <listitem>
+                  <para>root=dhcp alone directs initrd to look at the DHCP root-path where NFS 
+    options can be specified.
+    root-path=&lt;server-ip&gt;:&lt;root-dir&gt;[,&lt;nfs-options&gt;]
+    root-path=nfs:&lt;server-ip&gt;:&lt;root-dir&gt;[,&lt;nfs-options&gt;]
+    root-path=nfs4:&lt;server-ip&gt;:&lt;root-dir&gt;[,&lt;nfs-options&gt;]</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>root=</envar>
+                  <filename>/dev/nfs</filename>
+                  <envar> nfsroot=</envar>
+                  <optional><replaceable>&lt;server-ip&gt;</replaceable>:</optional>
+                  <replaceable>&lt;root-dir&gt;</replaceable>
+                  <optional>:<replaceable>&lt;nfs-options&gt;</replaceable></optional>
+                </term>
+                <listitem>
+                  <para><emphasis remap="B">Deprecated!</emphasis> kernel Documentation<filename>/filesystems/nfsroot.txt</filename> defines 
+    this method.  
+    This is supported by dracut, but not recommended.</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar remap="B">rd_NFS_DOMAIN=</envar>
+                  <replaceable>&lt;NFSv4 domain name&gt;</replaceable>
+                </term>
+                <listitem>
+                  <para>Set the NFSv4 domain name. Will overwrite the settings in <filename>/etc/idmap.conf</filename>.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>iSCSI</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>root=</envar><constant>iscsi</constant>:<optional><replaceable>&lt;username&gt;</replaceable>:<replaceable>&lt;password&gt;</replaceable><optional>:<replaceable>&lt;reverse&gt;</replaceable>:<replaceable>&lt;password&gt;</replaceable></optional>@</optional><optional>
+                    <replaceable>&lt;servername&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;protocol&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;port&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;LUN&gt;</replaceable>
+                  </optional>:<replaceable>&lt;targetname&gt;</replaceable></term>
+                <listitem>
+                  <para>protocol defaults to &quot;6&quot;, LUN defaults to &quot;0&quot;.</para>
+                  <para>If the &quot;servername&quot; field is provided by <acronym>BOOTP</acronym> or <acronym>DHCP</acronym>, then that
+    field is used in conjunction with other associated fields to contact
+    the boot server in the Boot stage.  However, if the
+    &quot;servername&quot; field is not provided, then the &quot;targetname&quot; field is
+    then used in the Discovery Service stage in conjunction with other
+    associated fields.</para>
+                  <para>See <ulink url="http://tools.ietf.org/html/rfc4173#section-5">http://tools.ietf.org/html/rfc4173</ulink>.</para>
+                  <para>e.g.:<programlisting>root=iscsi:192.168.50.1::::iqn.2009-06.dracut:target0    </programlisting></para>
+                  <para>If servername is an IPv6 address, it has to be put in brackets. e.g.: 
+    <programlisting>root=iscsi:[2001:DB8::1]::::iqn.2009-06.dracut:target0    </programlisting></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term><envar>root=</envar><replaceable>???</replaceable><envar> netroot=</envar><constant>iscsi</constant>:<optional><replaceable>&lt;username&gt;</replaceable>:<replaceable>&lt;password&gt;</replaceable><optional>:<replaceable>&lt;reverse&gt;</replaceable>:<replaceable>&lt;password&gt;</replaceable></optional>@</optional><optional>
+                    <replaceable>&lt;servername&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;protocol&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;port&gt;</replaceable>
+                  </optional>:<optional>
+                    <replaceable>&lt;LUN&gt;</replaceable>
+                  </optional>:<replaceable>&lt;targetname&gt;</replaceable> ...</term>
+                <listitem>
+                  <para>multiple netroot options allow setting up multiple iscsi disks. e.g.: 
+    <programlisting>root=UUID=12424547
+    netroot=iscsi:192.168.50.1::::iqn.2009-06.dracut:target0
+    netroot=iscsi:192.168.50.1::::iqn.2009-06.dracut:target1  </programlisting></para>
+                  <para>If servername is an IPv6 address, it has to be put in brackets.
+    e.g.:
+    <programlisting>netroot=iscsi:[2001:DB8::1]::::iqn.2009-06.dracut:target0</programlisting></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>root=<replaceable>???</replaceable></envar>
+                  <envar>iscsi_initiator=<replaceable>&lt;initiator&gt; </replaceable></envar>
+                  <envar>iscsi_target_name=<replaceable>&lt;target name&gt; </replaceable></envar>
+                  <envar>iscsi_target_ip=<replaceable>&lt;target ip&gt; </replaceable></envar>
+                  <envar>iscsi_target_port=<replaceable>&lt;target port&gt; </replaceable></envar>
+                  <envar>iscsi_target_group=<replaceable>&lt;target group&gt; </replaceable></envar>
+                  <envar>iscsi_username=<replaceable>&lt;username&gt; </replaceable></envar>
+                  <envar>iscsi_password=<replaceable>&lt;password&gt; </replaceable></envar>
+                  <envar>iscsi_in_username=<replaceable>&lt;in username&gt; </replaceable></envar>
+                  <envar>iscsi_in_password=<replaceable>&lt;in password&gt; </replaceable></envar>
+                </term>
+                <listitem>
+                  <para>manually specify all iscsistart parameter (see <userinput>iscsistart&nbsp;--help</userinput>)</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>root=</envar>
+                  <replaceable>??? </replaceable>
+                  <envar>iscsi_firmware=1</envar>
+                </term>
+                <listitem>
+                  <para>will read the iscsi parameter from the BIOS firmware</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>FCoE</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>netroot=</envar><constant>fcoe</constant>:<replaceable>&lt;interface|MAC&gt;</replaceable>:<replaceable>{dcb|nodcb}</replaceable></term>
+                <listitem>
+                  <para>Try to connect to a FCoE SAN through the NIC specified by <replaceable>&lt;interface&gt;</replaceable> or <replaceable>&lt;MAC&gt;</replaceable>,
+    for the second argument, currently only nodcb is supported. <remark>Note: letters in the MAC-address must be lowercase!</remark></para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>NBD</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>root=</envar><constant>nbd</constant>:<replaceable>&lt;server&gt;</replaceable>:<replaceable>&lt;port&gt;</replaceable><optional>:<replaceable>&lt;fstype&gt;</replaceable></optional><optional>:<replaceable>&lt;mountopts&gt;</replaceable></optional></term>
+                <listitem>
+                  <para>mount nbd share from &lt;server&gt;</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>root=dhcp</envar>
+                </term>
+                <listitem>
+                  <para>with dhcp root-path=nbd:&lt;server&gt;:&lt;port&gt;[:&lt;fstype&gt;][:&lt;mountopts&gt;]
+    root=dhcp alone directs initrd to look at the DHCP root-path where NBD 
+    options can be specified.
+    This syntax is only usable in cases where you are directly mounting the volume 
+    as the rootfs.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>DASD</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>rd_DASD_MOD=</envar>....</term>
+                <listitem>
+                  <para>same syntax as the kernel module parameter (s390 only)</para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_DASD=</envar>
+                  <replaceable>&lt;dasd_adaptor device bus ID&gt;</replaceable>
+                  <optional>,readonly=<replaceable>X</replaceable></optional>
+                  <optional>,use_diag=<replaceable>X</replaceable></optional>
+                  <optional>,erplog=<replaceable>X</replaceable></optional>
+                </term>
+                <listitem>
+                  <para>activate DASD device with the given adaptor device bus ID and setting the sysfs attributes
+    to the specified values
+    This parameter can be specified multiple times.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>ZFCP</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>rd_ZFCP=</envar><replaceable>&lt;zfcp adaptor device bus ID&gt;</replaceable>,<replaceable>&lt;WWPN&gt;</replaceable>,<replaceable>&lt;FCPLUN&gt;</replaceable></term>
+                <listitem>
+                  <para>rd_ZFCP can be specified multiple times on the kernel command line. e.g.: <programlisting>rd_ZFCP=0.0.4000,0x5005076300C213e9,0x5022000000000000</programlisting></para>
+                </listitem>
+              </varlistentry>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_ZFCPCONF</envar>
+                </term>
+                <listitem>
+                  <para>ignore zfcp.conf included in the initramfs</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>ZNET</title>
+            <variablelist>
+              <varlistentry>
+                <term><envar>rd_ZNET=</envar><replaceable>&lt;nettype&gt;</replaceable>,<replaceable>&lt;subchannels&gt;</replaceable>,<replaceable>&lt;options&gt;</replaceable></term>
+                <listitem>
+                  <para>rd_ZNET can be specified multiple times on the kernel command line. e.g.:
+    <programlisting>rd_ZNET=qeth,0.0.0600,0.0.0601,0.0.0602,layer2=1,portname=foo
+    rd_ZNET=ctc,0.0.0600,0.0.0601,0.0.0602,protocol=bar</programlisting></para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+          <refsect2>
+            <title>Plymouth Boot Splash</title>
+            <variablelist>
+              <varlistentry>
+                <term>
+                  <envar>rd_NO_PLYMOUTH</envar>
+                </term>
+                <listitem>
+                  <para>disable plymouth. This will not work with encrypted partitions.</para>
+                </listitem>
+              </varlistentry>
+            </variablelist>
+          </refsect2>
+        </refsect1>
+        <refsect1>
+          <title>Configuration in the Initramfs</title>
+          <variablelist>
+            <varlistentry>
+              <term>
+                <filename>/conf/conf.d/</filename>
+              </term>
+              <listitem>
+                <para>Any files found in <filename>/conf/conf.d/</filename> will be sourced in the initramfs to 
+  set initial values. Command line options will override these values 
+  set in the configuration files.</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>
+                <filename>/etc/cmdline</filename>
+              </term>
+              <listitem>
+                <para>Can contain additional command line options.</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </refsect1>
+        <refsect1>
+          <title>See Also</title>
+          <para>
+     <citerefentry>
+              <refentrytitle>dracut</refentrytitle>
+              <manvolnum>8</manvolnum>
+            </citerefentry>
+     <citerefentry>
+              <refentrytitle>dracut.conf</refentrytitle>
+              <manvolnum>5</manvolnum>
+            </citerefentry>
+   </para>
+        </refsect1>
+      </refentry>
+    </section>
+  </appendix>
+</book>

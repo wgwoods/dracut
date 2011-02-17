@@ -17,7 +17,13 @@ else
 targets = 
 endif
 
-all: $(targets)
+all: $(targets) dracut-rhel6.html
+
+dracut-rhel6.html: dracut-rhel6.xml
+	xsltproc -o dracut-rhel6.html --xinclude -nonet \
+		--stringparam draft.mode yes \
+		--stringparam html.stylesheet http://docs.redhat.com/docs/en-US/Common_Content/css/default.css \
+		http://docbook.sourceforge.net/release/xsl/current/xhtml/docbook.xsl dracut-rhel6.xml
 
 modules.d/99base/switch_root: switch_root.c
 	gcc -D _GNU_SOURCE -D 'PACKAGE_STRING="dracut"' -std=gnu99 -fsigned-char -g -O2 -o modules.d/99base/switch_root switch_root.c	
