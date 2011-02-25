@@ -21,6 +21,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# store for logging
+dracut_args="$@"
 
 usage() {
 #                                                       80x25 linebreak here ^
@@ -173,6 +175,7 @@ fi
 dracutfunctions=$dracutbasedir/dracut-functions
 export dracutfunctions
 
+dinfo "Executing $0 $dracut_args"
 # This is kinda legacy -- eventually it should go away.
 case $dracutmodules in
     ""|auto) dracutmodules="all" ;;
@@ -187,23 +190,23 @@ srcmods="/lib/modules/$kernel/"
 export srcmods
 
 if [[ -f $outfile && ! $force ]]; then
-    echo "Will not override existing initramfs ($outfile) without --force"
+    derror "Will not override existing initramfs ($outfile) without --force"
     exit 1
 fi
 
 outdir=$(dirname "$outfile")
 if ! [[ -d "$outdir" ]]; then
-    echo "Can't write $outfile: Directory $outdir does not exist."
+    derror "Can't write $outfile: Directory $outdir does not exist."
     exit 1
 fi
 
 if ! [[ -w "$outdir" ]]; then
-    echo "No permission to write $outdir."
+    derror "No permission to write $outdir."
     exit 1
 fi
 
 if [[ -f "$outfile" ]] &&  ! [[ -w "$outfile" ]]; then
-    echo "No permission to write $outfile."
+    derror "No permission to write $outfile."
     exit 1
 fi
 
@@ -309,8 +312,8 @@ if [ $? -ne 0 ]; then
     derror "dracut: creation of $outfile failed"
     exit 1
 fi 
-
-[[ $beverbose = yes ]] && ls -lh "$outfile"
+dinfo "Wrote $outfile"
+dinfo $(ls -l "$outfile")
 
 exit 0
 
