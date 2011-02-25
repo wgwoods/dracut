@@ -29,8 +29,8 @@ if ! [[ $dracutlogfile ]]; then
     [[ $dracutbasedir = /usr/share/dracut ]] && \
 	dracutlogfile=/var/log/dracut.log || \
 	dracutlogfile=$HOME/dracut.log
-    if [[ -w $dracutlogfile ]]; then
-        >"$dracutlogfile"
+    if [[ -w ${dracutlogfile%/*} ]]; then
+        >>"$dracutlogfile"
     fi
 fi
 
