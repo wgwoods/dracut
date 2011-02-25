@@ -162,6 +162,9 @@ rm $RPM_BUILD_ROOT/sbin/mkinitrd
 rm $RPM_BUILD_ROOT/sbin/lsinitrd
 %endif
 
+mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d/dracut
+install -m 0644 dracut.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/dracut
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -180,6 +183,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/dracut/dracut-functions
 %config(noreplace) /etc/dracut.conf
 %dir /etc/dracut.conf.d
+%config(noreplace) /etc/logrotate.d/dracut
 %{_mandir}/man8/dracut.8*
 %{_mandir}/man5/dracut.conf.5*
 %{_datadir}/dracut/modules.d/00dash
