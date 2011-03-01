@@ -420,8 +420,10 @@ check_modules() {
 install_kmod_with_fw() {
     local modname=${1##*/} fwdir found
     modname=${modname%.ko*}
+    # no need to go further if the module is already installed
+    [[ -e  "${initdir}/lib/modules/$kernel/${1##*/lib/modules/$kernel/}" ]] && return 0
     inst_simple "$1" "/lib/modules/$kernel/${1##*/lib/modules/$kernel/}" || \
-	return 0 # no need to go further if the module is already installed
+	return $? 
     for fw in $(modinfo -k $kernel -F firmware $1 2>/dev/null); do
 	found=''
 	for fwdir in $fw_dir; do
@@ -434,6 +436,7 @@ install_kmod_with_fw() {
 	    dinfo "Possible missing firmware \"${fw}\" for kernel module \"${mod}.ko\""
 	fi
     done
+    return 0
 }
 
 # Do something with all the dependencies of a kernel module.
@@ -443,13 +446,16 @@ install_kmod_with_fw() {
 # $2 = module to get dependencies for
 # rest of args = arguments to modprobe
 for_each_kmod_dep() {
-    local func=$1 kmod=$2 cmd modpapth options
+    local func=$1 kmod=$2 cmd modpapth options 
     shift 2
-    modprobe "$@" --ignore-install --show-depends $kmod 2>/dev/null | \
+    modprobe "$@" --ignore-install --show-depends $kmod 2>/dev/null | ( \
+        local found=0;
 	while read cmd modpath options; do
 	    [[ $cmd = insmod ]] || continue
-	    $func $modpath
-    done
+	    $func ${modpath} || exit $?
+            found=1
+    done; [[ $found -eq 0 ]] && exit 1; exit 0;)
+    return $?
 }
 
 # filter kernel modules to install certain modules that meet specific
@@ -484,6 +490,7 @@ filter_kernel_modules () (
 instmods() {
     [[ $no_kernel = yes ]] && return
     local mod mpargs modpath modname cmd
+    local ret=0
     while (($# > 0)); do
 	mod=${1%.ko*}
 	case $mod in
@@ -519,10 +526,12 @@ instmods() {
 		# it may require
 		for_each_kmod_dep install_kmod_with_fw $mod \
 		    --set-version $kernel -d ${srcmods%%/lib/modules/*}/
-		;;
+		ret=$((ret+$?))
+                ;;
 	esac      
 	shift
     done
+    return $ret
 } 
 
 # vim:ts=8:sw=4:sts=4:et
