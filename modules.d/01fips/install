@@ -26,5 +26,6 @@ if [ -e /sbin/.cryptsetup.hmac ]; then
 fi
 
 dracut_install /usr/$libdir/hmaccalc/sha512hmac.hmac
+dracut_install fipscheck
 
 # vim:ts=8:sw=4:sts=4:et
