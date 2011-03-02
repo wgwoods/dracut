@@ -7,7 +7,7 @@ FIPSMODULES="$FIPSMODULES cryptomgr crypto_null tcrypt"
 mkdir -p "${initdir}/etc/modprobe.d"
 
 for mod in $FIPSMODULES; do 
-    if instmods $mod; then
+    if hostonly='' instmods $mod; then
         echo $mod >> "${initdir}/etc/fipsmodules"
         echo "blacklist $mod" >> "${initdir}/etc/modprobe.d/fips.conf"
     fi
