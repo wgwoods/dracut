@@ -18,13 +18,6 @@ else
         /$libdir/libfreebl3.so /$libdir/libfreebl3.chk 
 fi
 
-if [ -e /sbin/.cryptsetup.hmac ]; then
-    for i in /sbin/.cryptsetup.hmac /$libdir/.libcryptsetup.so*.hmac; do
-        [ -e $i ] || continue
-        dracut_install $i
-    done
-fi
-
 dracut_install /usr/$libdir/hmaccalc/sha512hmac.hmac
 dracut_install fipscheck
 
