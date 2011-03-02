@@ -18,6 +18,11 @@ else
         /$libdir/libfreebl3.so /$libdir/libfreebl3.chk 
 fi
 
+for i in /{usr,}/$libdir/libssl.so* /{usr,}/$libdir/libcrypto.so*; do
+    [ -e $i ] || continue
+    dracut_install $i
+done
+
 dracut_install /usr/$libdir/hmaccalc/sha512hmac.hmac
 dracut_install fipscheck
 
