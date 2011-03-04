@@ -46,6 +46,7 @@ emergency_shell()
     echo $@
     source_all emergency
     echo
+    [ -e /.die ] && exit 1
     if getarg rdshell || getarg rdbreak; then
         echo "Dropping to debug shell."
         echo
