@@ -43,7 +43,7 @@ emergency_shell()
     fi
     wait_for_loginit
     echo ; echo
-    echo $@
+    warn $@
     source_all emergency
     echo
     [ -e /.die ] && exit 1
