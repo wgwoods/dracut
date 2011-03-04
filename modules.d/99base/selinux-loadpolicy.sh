@@ -47,17 +47,12 @@ rd_load_policy()
 
 	warn "Initial SELinux policy load failed."
 	if [ $ret -eq 3 -o $permissive -eq 0 ]; then
-	    warn "Machine in enforcing mode."
-	    warn "Not continuing"
-	    sleep 100d
+	    die "Initial SELinux policy load failed. Machine in enforcing mode. To disable selinux, add selinux=0 to the kernel command line."
 	    exit 1
 	fi
 	return 0
     elif [ $permissive -eq 0 -a "$SELINUX" != "disabled" ]; then
-	warn "Machine in enforcing mode and cannot execute load_policy."
-	warn "To disable selinux, add selinux=0 to the kernel command line."
-	warn "Not continuing"
-	sleep 100d
+	die "Machine in enforcing mode and cannot execute load_policy. To disable selinux, add selinux=0 to the kernel command line."
 	exit 1
     fi
 }
