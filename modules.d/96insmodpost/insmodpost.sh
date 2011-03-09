@@ -3,6 +3,11 @@
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 . /lib/dracut-lib.sh
 
-for p in $(getargs rdinsmodpost=); do 
-    modprobe $p
+for i in $(getargs rdinsmodpost=); do 
+    (
+        IFS=,
+        for p in $i; do 
+            modprobe $p
+        done
+    )
 done

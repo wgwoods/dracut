@@ -1,5 +1,10 @@
 #!/bin/sh
 
-for p in $(getargs rdblacklist=); do 
-     echo "blacklist $p" >> /etc/modprobe.d/initramfsblacklist.conf
+for i in $(getargs rdblacklist=); do 
+    (
+        IFS=,
+	for p in $i; do 
+            echo "blacklist $p" >> /etc/modprobe.d/initramfsblacklist.conf
+	done
+    )
 done

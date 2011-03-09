@@ -1130,7 +1130,7 @@
             <variablelist>
               <varlistentry>
                 <term>
-                  <envar>rdblacklist=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                  <envar>rdblacklist=<replaceable>&lt;drivername&gt;<optional>,&lt;drivername&gt;,...</optional></replaceable></envar>
                 </term>
                 <listitem>
                   <para>do not load kernel module &lt;drivername&gt;
@@ -1139,7 +1139,7 @@
               </varlistentry>
               <varlistentry>
                 <term>
-                  <envar>rdloaddriver=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                  <envar>rdloaddriver=<replaceable>&lt;drivername&gt;<optional>,&lt;drivername&gt;,...</optional></replaceable></envar>
                 </term>
                 <listitem>
                   <para>force loading kernel module &lt;drivername&gt;
@@ -1148,7 +1148,7 @@
               </varlistentry>
               <varlistentry>
                 <term>
-                  <envar>rdrdinsmodpost=<replaceable>&lt;drivername&gt;</replaceable></envar>
+                  <envar>rdrdinsmodpost=<replaceable>&lt;drivername&gt;<optional>,&lt;drivername&gt;,...</optional></replaceable></envar>
                 </term>
                 <listitem>
                   <para>force loading kernel module &lt;drivername&gt; after all automatic loading modules have been loaded. This parameter can be specified multiple times.</para>
