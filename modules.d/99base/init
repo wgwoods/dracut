@@ -315,10 +315,21 @@ info "Switching root"
 
 wait_for_loginit
 
-exec switch_root "$NEWROOT" "$INIT" $initargs || {
-    echo "Something went very badly wrong in the initramfs.  Please "
-    echo "file a bug against dracut."
-    emergency_shell
-}
+if [ -f /etc/capsdrop ]; then
+    . /etc/capsdrop
+    info "Calling $INIT with capabilities $CAPS_INIT_DROP dropped."
+    exec capsh --drop="$CAPS_INIT_DROP" -- -c "exec switch_root \"$NEWROOT\" \"$INIT\" $initargs" || {
+	warn "Command:"
+	warn capsh --drop=$CAPS_INIT_DROP -- -c "'"exec switch_root "$NEWROOT" "$INIT" $initargs"'"
+	warn "failed."
+	emergency_shell
+    }
+else
+    exec switch_root "$NEWROOT" "$INIT" $initargs || {
+	warn "Something went very badly wrong in the initramfs.  Please "
+	warn "file a bug against dracut."
+	emergency_shell
+    }
+fi
 # vim:ts=8:sw=4:sts=4:et
 

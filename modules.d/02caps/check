@@ -1,0 +1,8 @@
+#!/bin/bash
+
+[[ $1 = -d ]] && exit 0
+
+type -P capsh >/dev/null 2>&1 || exit 1
+
+exit 0
+
