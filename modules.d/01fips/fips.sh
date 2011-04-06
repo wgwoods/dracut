@@ -1,7 +1,7 @@
 #!/bin/sh
-do_fips()
+
+do_fipskernel()
 {
-    FIPSMODULES=$(cat /etc/fipsmodules)
     boot=$(getarg boot=)
     KERNEL=$(uname -r)
     case "$boot" in
@@ -46,7 +46,15 @@ do_fips()
 
     info "Umounting /boot"
     umount /boot
+}
 
+do_fips()
+{
+    FIPSMODULES=$(cat /etc/fipsmodules)
+
+    if ! getarg rd.fips.skipkernel >/dev/null; then
+	do_fipskernel
+    fi
     info "Loading and integrity checking all crypto modules"
     for module in $FIPSMODULES; do
         if [ "$module" != "tcrypt" ]; then
