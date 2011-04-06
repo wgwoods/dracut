@@ -245,6 +245,23 @@ disable DM RAID detection
 only activate the raid sets with the given UUID.
 This parameter can be specified multiple times.
 
+.SS FIPS
+.TP
+.BR fips=1
+enable FIPS
+.TP
+.BR boot=<boot device>
+specify the device, where /boot is located
+ e.g.
+  boot=/dev/sda1
+  boot=/dev/disk/by-path/pci-0000:00:1f.1-scsi-0:0:1:0-part1
+  boot=UUID=<uuid>
+  boot=LABEL=<label>
+.TP
+.BR rd.fips.skipkernel
+skip checksum check of the kernel image. 
+Useful, if the kernel image is not in a separate boot partition.
+
 .SS Network
 .TP
 .BR ip= {dhcp|on|any|dhcp6|auto6|ibft}
