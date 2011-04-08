@@ -1,6 +1,6 @@
 #!/bin/bash
 
-inst_hook pre-trigger 01 "$moddir/fips.sh"
+inst_hook pre-pivot 01 "$moddir/fips.sh"
 dracut_install sha512hmac rmmod insmod mount uname umount
 
 libdir="lib"
