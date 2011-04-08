@@ -59,7 +59,7 @@ if [ "$fcoe_interface" = "edd" ]; then
                 unset fcoe_mac
                 unset fcoe_interface
                 fcoe_mac=$(cat ${nic}/address)
-                [ -n "$fcoe_mac" ] && source /sbin/fcoe-genrules.sh
+                [ -n "$fcoe_mac" ] && . /sbin/fcoe-genrules.sh
             fi
         done
     done
@@ -71,7 +71,7 @@ else
         if [ "$fcoe_dcb" != "nodcb" -a "$fcoe_dcb" != "dcb" ] ; then
             warn "Invalid FCoE DCB option: $fcoe_dcb"
         fi
-        source /sbin/fcoe-genrules.sh
+        . /sbin/fcoe-genrules.sh
     done
 fi
 
