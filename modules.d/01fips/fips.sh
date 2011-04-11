@@ -58,8 +58,10 @@ do_fipskernel()
 
 do_fips()
 {
-    FIPSMODULES=$(cat /etc/fipsmodules)
+    do_fipskernel || return 1
 
+    FIPSMODULES=$(cat /etc/fipsmodules)
+    
     info "Loading and integrity checking all crypto modules"
     for module in $FIPSMODULES; do
         if [ "$module" != "tcrypt" ]; then
@@ -73,11 +75,3 @@ do_fips()
 
     return 0
 }
-
-if ! fipsmode=$(getarg fips) || [ $fipsmode = "0" ]; then
-    rm -f /etc/modprobe.d/fips.conf >/dev/null 2>&1
-else
-    set -e
-    do_fips || die "FIPS integrity test failed"
-    set +e
-fi
