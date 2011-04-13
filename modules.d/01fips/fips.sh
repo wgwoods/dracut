@@ -33,11 +33,11 @@ do_fipskernel()
             fi
         fi
 
-        [ -e "$boot" ]
+        [ -e "$boot" ] || return 1
         
         mkdir /boot
         info "Mounting $boot as /boot"
-        mount -oro "$boot" /boot
+        mount -oro "$boot" /boot || return 1
         unset newroot
     fi
 
