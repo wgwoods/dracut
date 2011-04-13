@@ -25,12 +25,20 @@ do_fipskernel()
         if ! [ -e "$boot" ]; then
             udevadm trigger --action=add >/dev/null 2>&1
             [ -z "$UDEVVERSION" ] && UDEVVERSION=$(udevadm --version)
-            
-            if [ $UDEVVERSION -ge 143 ]; then
-                udevadm settle --exit-if-exists=$boot
-            else
-                udevadm settle --timeout=30
-            fi
+            i=0
+            while ! [ -e $boot ]; do
+                if [ $UDEVVERSION -ge 143 ]; then
+                    udevadm settle --exit-if-exists=$boot
+                else
+                    udevadm settle --timeout=30
+                fi
+                [ -e $boot ] && break
+                modprobe scsi_wait_scan && rmmod scsi_wait_scan
+                [ -e $boot ] && break
+                sleep 0.5
+                i=$(($i+1))
+                [ $i -gt 40 ] && break
+            done
         fi
 
         [ -e "$boot" ] || return 1
