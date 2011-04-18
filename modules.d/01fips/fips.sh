@@ -1,13 +1,12 @@
 #!/bin/sh
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
-do_fipskernel()
+
+mount_boot()
 {
     boot=$(getarg boot=)
-    newroot=$NEWROOT
 
     if [ -n "$boot" ]; then
-        KERNEL=$(uname -r)
         case "$boot" in
         LABEL=*)
             boot="$(echo $boot | sed 's,/,\\x2f,g')"
@@ -42,14 +41,20 @@ do_fipskernel()
         fi
 
         [ -e "$boot" ] || return 1
-        
+
         mkdir /boot
         info "Mounting $boot as /boot"
         mount -oro "$boot" /boot || return 1
-        unset newroot
     fi
+}
 
+do_fips()
+{
     info "Checking integrity of kernel"
+    newroot=$NEWROOT
+    KERNEL=$(uname -r)
+
+    [ -e "$newroot/boot/.vmlinuz-${KERNEL}.hmac" ] || unset newroot
 
     if ! [ -e "$newroot/boot/.vmlinuz-${KERNEL}.hmac" ]; then
         warn "$newroot/boot/.vmlinuz-${KERNEL}.hmac does not exist"
@@ -58,18 +63,8 @@ do_fipskernel()
 
     sha512hmac -c "$newroot/boot/.vmlinuz-${KERNEL}.hmac" || return 1
 
-    if [ -z "$newroot" ]; then
-        info "Umounting /boot"
-        umount /boot
-    fi
-}
-
-do_fips()
-{
-    do_fipskernel || return 1
-
     FIPSMODULES=$(cat /etc/fipsmodules)
-    
+
     info "Loading and integrity checking all crypto modules"
     for module in $FIPSMODULES; do
         if [ "$module" != "tcrypt" ]; then
@@ -79,7 +74,11 @@ do_fips()
     info "Self testing crypto algorithms"
     modprobe tcrypt || return 1
     rmmod tcrypt
-    info "All initrd crypto checks done"  
+    info "All initrd crypto checks done"
+
+    > /tmp/fipsdone
+
+    umount /boot >/dev/null 2>&1
 
     return 0
 }
