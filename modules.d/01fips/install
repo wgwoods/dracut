@@ -28,4 +28,8 @@ done
 dracut_install /usr/$libdir/hmaccalc/sha512hmac.hmac
 dracut_install fipscheck
 
+if command -v prelink >/dev/null; then
+    dracut_install prelink
+fi
+
 # vim:ts=8:sw=4:sts=4:et
