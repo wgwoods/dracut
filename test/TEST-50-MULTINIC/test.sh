@@ -5,6 +5,8 @@ KVERSION=${KVERSION-$(uname -r)}
 
 # Uncomment this to debug failures
 #DEBUGFAIL="rdshell"
+#SERIAL="udp:127.0.0.1:9999"
+SERIAL="null"
 
 run_server() {
     # Start server first
@@ -12,8 +14,8 @@ run_server() {
 
     $testdir/run-qemu -hda server.ext2 -m 256M -nographic \
 	-net nic,macaddr=52:54:00:12:34:56,model=e1000 \
-	-net socket,mcast=230.0.0.1:1234 \
-	-serial udp:127.0.0.1:9999 \
+        -net socket,listen=127.0.0.1:12345 \
+	-serial $SERIAL \
 	-kernel /boot/vmlinuz-$KVERSION \
 	-append "selinux=0 root=/dev/sda rdinitdebug rdinfo rdnetdebug rw quiet console=ttyS0,115200n81" \
 	-initrd initramfs.server -pidfile server.pid -daemonize || return 1
@@ -46,7 +48,8 @@ client_test() {
   	-net nic,macaddr=52:54:00:12:34:$mac1,model=e1000 \
   	-net nic,macaddr=52:54:00:12:34:$mac2,model=e1000 \
   	-net nic,macaddr=52:54:00:12:34:$mac3,model=e1000 \
-  	-net socket,mcast=230.0.0.1:1234 \
+        -net socket,connect=127.0.0.1:12345 \
+        -hdc /dev/null \
   	-kernel /boot/vmlinuz-$KVERSION \
   	-append "$cmdline $DEBUGFAIL rd_retry=5 rdinitdebug rdinfo rdnetdebug ro quiet console=ttyS0,115200n81 selinux=0 rdcopystate" \
   	-initrd initramfs.testing
@@ -199,13 +202,14 @@ test_setup() {
  	mkdir overlay
  	. $basedir/dracut-functions
  	dracut_install poweroff shutdown
- 	inst_simple ./hard-off.sh /emergency/01hard-off.sh
+ 	inst_simple ./hard-off.sh /emergency/000hard-off.sh
 	inst_simple ./99-idesymlinks.rules /etc/udev/rules.d/99-idesymlinks.rules
     )
 
     # Make server's dracut image
     $basedir/dracut -l -i overlay / \
-	-m "dash udev-rules base rootfs-block debug kernel-modules" \
+	-m "dash udev-rules base rootfs-block kernel-modules" \
+	-a "debug" \
 	-d "piix ide-gd_mod ata_piix ext2 sd_mod e1000" \
 	-f initramfs.server $KVERSION || return 1
 

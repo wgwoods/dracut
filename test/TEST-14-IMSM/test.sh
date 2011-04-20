@@ -37,8 +37,8 @@ test_run() {
 test_setup() {
     # Create the blank file to use as a root filesystem
     dd if=/dev/zero of=root.ext2 bs=1M count=1
-    dd if=/dev/zero of=disk1 bs=1M count=40
-    dd if=/dev/zero of=disk2 bs=1M count=40
+    dd if=/dev/zero of=disk1 bs=1M count=80
+    dd if=/dev/zero of=disk2 bs=1M count=80
 
     kernel=$KVERSION
     # Create what will eventually be our root filesystem onto an overlay
@@ -84,7 +84,7 @@ test_setup() {
 	initdir=overlay
 	. $basedir/dracut-functions
 	dracut_install poweroff shutdown
-	inst_simple ./hard-off.sh /emergency/01hard-off.sh
+	inst_simple ./hard-off.sh /emergency/000hard-off.sh
 	inst_simple ./99-idesymlinks.rules /etc/udev/rules.d/99-idesymlinks.rules
     )
     sudo $basedir/dracut -l -i overlay / \
