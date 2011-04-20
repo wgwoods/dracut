@@ -10,7 +10,7 @@ mdadm -IRs 2>&1 | vinfo
 # which have had a container added
 for md in /dev/md[0-9]* /dev/md/*; do 
 	[ -b "$md" ] || continue
-	local udevinfo="$(udevadm info --query=env --name=$md)"
+	udevinfo="$(udevadm info --query=env --name=$md)"
 	strstr "$udevinfo" "MD_UUID=" && continue
 	strstr "$udevinfo" "MD_LEVEL=container" && continue
 	strstr "$udevinfo" "DEVTYPE=partition" && continue
