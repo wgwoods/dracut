@@ -1,4 +1,6 @@
 #!/bin/sh
+# -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
+# ex: ts=8 sw=4 sts=4 et filetype=sh
 
 # pxelinux provides macaddr '-' separated, but we need ':'
 fix_bootif() {
@@ -31,12 +33,12 @@ fix_bootif() {
     # If we have to handle multiple interfaces, handle only them.
     elif [ -n "$IFACES" ] ; then
 	for iface in $IFACES ; do
-	    printf 'ACTION=="add", SUBSYSTEM=="net", ENV{INTERFACE}=="%s", RUN+="/sbin/ifup $env{INTERFACE}"\n' "$iface"
+	    printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="%s", RUN+="/sbin/ifup $env{INTERFACE}"\n' "$iface"
 	done
 
     # Default: We don't know the interface to use, handle all
     else
-	printf 'ACTION=="add", SUBSYSTEM=="net", RUN+="/sbin/ifup $env{INTERFACE}"\n'
+	printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="?*", RUN+="/sbin/ifup $env{INTERFACE}"\n'
     fi
 
 } > /etc/udev/rules.d/60-net.rules
