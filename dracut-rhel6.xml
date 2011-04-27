@@ -1608,7 +1608,8 @@ KEYTABLE=de-latin1-nodeadkeys</programlisting></para>
                 <term>
                   <envar>root=</envar>
                   <replaceable>??? </replaceable>
-                  <envar>iscsi_firmware=1</envar>
+                  <envar>netroot=iscsi</envar>
+                  <envar>iscsi_firmware</envar>
                 </term>
                 <listitem>
                   <para>will read the iscsi parameter from the BIOS firmware</para>
