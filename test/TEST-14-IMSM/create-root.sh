@@ -27,9 +27,9 @@ sfdisk -g /dev/mapper/isw*Test0
  # save a partition at the beginning for future flagging purposes
 sfdisk -C 2560 -H 2 -S 32 -L /dev/mapper/isw*Test0 <<EOF
 ,1
-,600
-,600
-,600
+,800
+,800
+,800
 EOF
 udevadm settle
 dmraid -a n
