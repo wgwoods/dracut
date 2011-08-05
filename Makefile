@@ -68,28 +68,33 @@ dist: dracut-$(VERSION).tar.bz2
 dracut-$(VERSION).tar.bz2:
 	git archive --format=tar $(VERSION) --prefix=dracut-$(VERSION)/ |bzip2 > dracut-$(VERSION).tar.bz2
 
+dracut-$(VERSION).tar.gz:
+	git archive --format=tar $(VERSION) --prefix=dracut-$(VERSION)/ |gzip > dracut-$(VERSION).tar.gz
+
 dracut-$(VERSION)-$(GITVERSION).tar.bz2:
 	git archive --format=tar HEAD --prefix=dracut-$(VERSION)-$(GITVERSION)/ |bzip2 > dracut-$(VERSION)-$(GITVERSION).tar.bz2
 
 
-rpm: clean dracut-$(VERSION).tar.bz2
-	rpmbuild --define "_topdir $$PWD" --define "_sourcedir $$PWD" --define "_specdir $$PWD" --define "_srcrpmdir $$PWD" --define "_rpmdir $$PWD" -ba dracut.spec 
-	rm -fr BUILD BUILDROOT
+rpm: dracut-$(VERSION).tar.bz2
+	mkdir -p rpmbuild
+	cp dracut-$(VERSION).tar.bz2 rpmbuild
+	cd rpmbuild; ../git2spec.pl $(VERSION) < ../dracut.spec > dracut.spec; \
+	rpmbuild --define "_topdir $$PWD" --define "_sourcedir $$PWD" \
+	        --define "_specdir $$PWD" --define "_srcrpmdir $$PWD" \
+		--define "_rpmdir $$PWD" -ba dracut.spec && \
+	( cd ..; mv rpmbuild/noarch/*.rpm .; mv rpmbuild/*.src.rpm .;rm -fr rpmbuild; ls *.rpm )
 
-gitrpm: dracut-$(VERSION)-$(GITVERSION).tar.bz2
-	echo "%define gittag $(GITVERSION)" > dracut.spec.git
-	cat dracut.spec >> dracut.spec.git
-	mv dracut.spec dracut.spec.bak
-	mv dracut.spec.git dracut.spec
-	rpmbuild --define "_topdir $$PWD" --define "_sourcedir $$PWD" --define "_specdir $$PWD" --define "_srcrpmdir $$PWD" --define "_rpmdir $$PWD" --define "gittag $(GITVERSION)" -ba dracut.spec || :
-	mv dracut.spec.bak dracut.spec
-	rm -fr BUILD BUILDROOT
-
-check: all
+syncheck:
 	@ret=0;for i in modules.d/99base/init modules.d/*/*.sh; do \
+                [ "$${i##*/}" = "caps.sh" ] && continue; \
 		dash -n "$$i" ; ret=$$(($$ret+$$?)); \
 	done;exit $$ret
-	make -C test check
+	@ret=0;for i in dracut modules.d/02caps/caps.sh modules.d/*/install modules.d/*/installkernel modules.d/*/check; do \
+		bash -n "$$i" ; ret=$$(($$ret+$$?)); \
+	done;exit $$ret
+
+check: all syncheck
+	$(MAKE) -C test check
 
 testimage: all
 	./dracut -l -a debug -f test-$(shell uname -r).img $(shell uname -r)
