@@ -7,7 +7,9 @@ while [ $# -gt 0 ]; do
 	--onetime)
 	    onetime="yes";;
 	--settled)
-	    settled="-settled";;
+	    queue="-settled";;
+	--timeout)
+	    queue="-timeout";;
 	--unique)
 	    unique="yes";;
 	--name)
@@ -35,6 +37,6 @@ else
    echo "$@" > "/tmp/$$-${job}.sh"
 fi
 
-mv -f "/tmp/$$-${job}.sh" "/initqueue${settled}/${job}.sh"
-[ -z "$settled" ] && >> /initqueue/work
+mv -f "/tmp/$$-${job}.sh" "/initqueue${queue}/${job}.sh"
+[ -z "$queue" ] && >> /initqueue/work
 

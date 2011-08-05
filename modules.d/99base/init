@@ -158,8 +158,9 @@ getarg 'rdbreak=initqueue' && emergency_shell -n initqueue "Break before initque
 RDRETRY=$(getarg 'rd_retry=')
 RDRETRY=${RDRETRY:-20}
 RDRETRY=$(($RDRETRY*2))
-
-i=0
+export RDRETRY
+main_loop=0
+export main_loop
 while :; do
 
     check_finished && break
@@ -205,13 +206,23 @@ while :; do
 	    ID_CDROM_MEDIA && continue
         echo change > "$cdrom/uevent"        
     done
-    
-    i=$(($i+1))
-    [ $i -gt $RDRETRY ] \
+
+    if [ $main_loop -gt $(($RDRETRY/2)) ]; then
+	for job in /initqueue-timeout/*.sh; do
+            [ -e "$job" ] || break
+            job=$job . $job
+            main_loop=0
+	done
+    fi
+
+    main_loop=$(($main_loop+1))
+    [ $main_loop -gt $RDRETRY ] \
         && { flock -s 9 ; emergency_shell "No root device \"$root\" found"; } 9>/.console_lock
 done
 unset job
 unset queuetriggered
+unset main_loop
+unset RDRETRY
 
 # pre-mount happens before we try to mount the root filesystem,
 # and happens once.
