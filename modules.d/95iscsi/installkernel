@@ -1,5 +1,5 @@
 #!/bin/bash
-instmods iscsi_tcp iscsi_ibft crc32c
+instmods iscsi_tcp iscsi_ibft crc32c bnx2i
 iscsi_module_test() {
     local iscsifuncs='iscsi_register_transport'
     fgrep -q "$iscsifuncs" "$1"

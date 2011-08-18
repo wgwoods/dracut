@@ -50,6 +50,8 @@ if [ -n "$iscsiroot" ] ; then
     [ -z "$netroot" ] || [ "$netroot" = "iscsi" ] && netroot=iscsi:$iscsiroot
 fi
 
+modprobe bnx2i 2>/dev/null
+
 # iscsi_firmware does not need argument checking
 if [ -n "$iscsi_firmware" ] ; then
     netroot=${netroot:-iscsi}
