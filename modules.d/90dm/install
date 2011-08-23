@@ -7,7 +7,7 @@ inst dmsetup
 
 inst dmeventd
 
-if ldd $(which dmraid) | grep -q lib64; then
+if ldd $(which dmsetup) | grep -q lib64; then
     LIBDIR="/lib64"
 else
     LIBDIR="/lib"
