@@ -20,7 +20,9 @@ rd_load_policy()
     if [ -x "$NEWROOT/usr/sbin/load_policy" -o -x "$NEWROOT/sbin/load_policy" ]; then
 	local ret=0
 	local out
-	info "Loading SELinux policy"
+        if [ "$SELINUX" != "disabled" ]; then
+            info "Loading SELinux policy"
+        fi
         # load_policy does mount /proc and /selinux in 
         # libselinux,selinux_init_load_policy()
         if [ -x "$NEWROOT/sbin/load_policy" ]; then
