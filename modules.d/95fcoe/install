@@ -5,6 +5,7 @@ inst dcbtool
 inst fipvlan
 inst lldpad
 inst vconfig
+inst readlink
 
 mkdir -p "$initdir/var/lib/lldpad"
 
