@@ -50,7 +50,7 @@ if [ -n "$iscsiroot" ] ; then
     [ -z "$netroot" ] || [ "$netroot" = "iscsi" ] && netroot=iscsi:$iscsiroot
 fi
 
-modprobe bnx2i 2>/dev/null
+[ -e /sys/module/bnx2i ] || modprobe bnx2i 2>/dev/null
 
 # iscsi_firmware does not need argument checking
 if [ -n "$iscsi_firmware" ] ; then
@@ -69,7 +69,7 @@ if [ -z "$iscsi_firmware" ] ; then
 fi
 
 # ISCSI actually supported?
-[ -e /sys/devices/virtual/iscsi_transport ] || modprobe iscsi_tcp || die "iscsiroot requested but kernel/initrd does not support iscsi"
+[ -e /sys/module/iscsi_tcp ] || modprobe iscsi_tcp || die "iscsiroot requested but kernel/initrd does not support iscsi"
 
 # Done, all good!
 rootok=1
