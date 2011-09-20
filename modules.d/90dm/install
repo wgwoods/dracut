@@ -13,8 +13,8 @@ else
     LIBDIR="/lib"
 fi
 
-for i in $(ls /{usr,}/$LIBDIR/libdmraid-events*.so 2>/dev/null); do
+for i in $(ls /{usr,}/$LIBDIR/libdevmapper-event.so* 2>/dev/null); do
     dracut_install $i
 done
 
-inst_rules 10-dm.rules 95-dm-notify.rules
+inst_rules 10-dm.rules 13-dm-disk.rules 95-dm-notify.rules
