@@ -28,17 +28,17 @@ fix_bootif() {
     BOOTIF=$(getarg 'BOOTIF=')
     if [ -n "$BOOTIF" ] ; then
 	BOOTIF=$(fix_bootif "$BOOTIF")
-	printf 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="%s", RUN+="/sbin/ifup $env{INTERFACE}"\n' "$BOOTIF"
+	printf 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="%s", RUN+="/sbin/initqueue --onetime --unique --name ifup-$env{INTERFACE} /sbin/ifup $env{INTERFACE}"\n' "$BOOTIF"
 
     # If we have to handle multiple interfaces, handle only them.
     elif [ -n "$IFACES" ] ; then
 	for iface in $IFACES ; do
-	    printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="%s", RUN+="/sbin/ifup $env{INTERFACE}"\n' "$iface"
+	    printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="%s", RUN+="/sbin/initqueue --onetime --unique --name ifup-$env{INTERFACE} /sbin/ifup $env{INTERFACE}"\n' "$iface"
 	done
 
     # Default: We don't know the interface to use, handle all
     else
-	printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="?*", RUN+="/sbin/ifup $env{INTERFACE}"\n'
+	printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="?*", RUN+="/sbin/initqueue --onetime --unique --name ifup-$env{INTERFACE} /sbin/ifup $env{INTERFACE}"\n'
     fi
 
 } > /etc/udev/rules.d/60-net.rules

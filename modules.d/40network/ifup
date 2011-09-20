@@ -12,9 +12,9 @@ do_dhcp() {
     # /sbin/dhclient-script will mark the netif up and generate the online
     # event for nfsroot
     # XXX add -V vendor class and option parsing per kernel
-    echo "Starting dhcp for interface $netif"
-    dhclient "$@" -1 -q -cf /etc/dhclient.conf -pf /tmp/dhclient.$netif.pid -lf /tmp/dhclient.$netif.lease $netif \
-    || echo "dhcp failed"
+    #echo "Starting dhcp for interface $netif"
+    dhclient "$@" -1 -q -cf /etc/dhclient.conf -pf /tmp/dhclient.$netif.pid -lf /tmp/dhclient.$netif.lease $netif &
+    #|| echo "dhcp failed"
 }
 
 load_ipv6() {
@@ -33,9 +33,10 @@ do_ipv6auto() {
         echo 0 > /proc/sys/net/ipv6/conf/$netif/forwarding 
         echo 1 > /proc/sys/net/ipv6/conf/$netif/accept_ra
         echo 1 > /proc/sys/net/ipv6/conf/$netif/accept_redirects
-	echo ip link set $netif up 
-	echo wait_for_if_up $netif
-    } > /tmp/net.$netif.up
+	ip link set $netif up 
+	wait_for_if_up $netif
+    } 
+    > /tmp/net.$netif.up
 
     [ -n "$hostname" ] && echo "echo $hostname > /proc/sys/kernel/hostname" > /tmp/net.$netif.hostname
 
@@ -56,13 +57,14 @@ do_static() {
     strstr $ip '*:*:*' && load_ipv6
 
     {
-	echo ip link set $netif up 
-	echo wait_for_if_up $netif
+	ip link set $netif up 
+	wait_for_if_up $netif
 	# do not flush addr for ipv6
-	strstr $ip '*:*:*' || \
-	    echo ip addr flush dev $netif
-	echo ip addr add $ip/$mask dev $netif
-    } > /tmp/net.$netif.up
+	#strstr $ip '*:*:*' || \
+	#    ip addr flush dev $netif
+	ip addr add $ip/$mask dev $netif
+    } 
+    > /tmp/net.$netif.up
 
     [ -n "$gw" ] && echo ip route add default via $gw dev $netif > /tmp/net.$netif.gw
     [ -n "$hostname" ] && echo "echo $hostname > /proc/sys/kernel/hostname" > /tmp/net.$netif.hostname
@@ -151,16 +153,23 @@ for p in $(getargs ip=); do
 	eval '[ "$'$i'" ] && echo '$i'="$'$i'"'
     done > /tmp/net.$netif.override
 
-    case $autoconf in
-	dhcp|on|any)
-	    do_dhcp -4 ;;
-	dhcp6)
-	    do_dhcp -6 ;;
-	auto6)
-	    do_ipv6auto ;;
-        *) 
-	    do_static ;;
-    esac
+    OLDIFS="$IFS"
+    IFS=,
+    set -- $autoconf
+    IFS="$OLDIFS"
+
+    for autoconf in "$@"; do
+	case $autoconf in
+	    dhcp|on|any)
+		do_dhcp -4 ;;
+	    dhcp6)
+		do_dhcp -6 ;;
+	    auto6)
+		do_ipv6auto ;;
+            *) 
+		do_static ;;
+	esac
+    done
     break
 done
 

@@ -4,7 +4,7 @@ TEST_DESCRIPTION="root filesystem on NFS with multiple nics"
 KVERSION=${KVERSION-$(uname -r)}
 
 # Uncomment this to debug failures
-#DEBUGFAIL="rdshell"
+#DEBUGFAIL="rdshell rdbreak"
 #SERIAL="udp:127.0.0.1:9999"
 SERIAL="null"
 
@@ -99,6 +99,16 @@ test_run() {
     client_test "MULTINIC root=nfs ip=dhcp" \
 	FF 00 FE \
 	"root=nfs:192.168.50.1:/nfs/client ip=dhcp" \
+	"eth1" || return 1
+
+    client_test "MULTINIC root=nfs ip=auto6,dhcp" \
+	FF 00 FE \
+	"root=nfs:192.168.50.1:/nfs/client ip=auto6,dhcp" \
+	"eth1" || return 1
+
+    client_test "MULTINIC root=nfs ip=dhcp,auto" \
+	FF 00 FE \
+	"root=nfs:192.168.50.1:/nfs/client ip=dhcp,auto6" \
 	"eth1" || return 1
 
     # Require two interfaces
