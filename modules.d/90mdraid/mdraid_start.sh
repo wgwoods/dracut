@@ -1,9 +1,13 @@
 #!/bin/sh
 
 . /lib/dracut-lib.sh
-# run mdadm if udev has settled
-info "Assembling MD RAID arrays"
 udevadm control --stop-exec-queue
+
+# run mdadm if udev has settled
+info "Autoassembling MD Raid"    
+/sbin/mdadm -As --auto=yes 2>&1 | vinfo
+
+info "Assembling MD RAID arrays"
 mdadm -IRs 2>&1 | vinfo
 
 # there could still be some leftover devices
