@@ -95,6 +95,15 @@ Requires: nss-softokn-freebl
 This package requires everything which is needed to build an
 all purpose initramfs with dracut, which does an integrity check.
 
+%package fips-aesni
+Summary: Dracut modules to build a dracut initramfs with an integrity check with aesni-intel
+Requires: %{name}-fips = %{version}-%{release}
+
+%description fips-aesni
+This package requires everything which is needed to build an
+all purpose initramfs with dracut, which does an integrity check 
+and adds the aesni-intel kernel module.
+
 %package caps
 Summary: Dracut modules to build a dracut initramfs which drops capabilities
 Requires: %{name} = %{version}-%{release}
@@ -152,6 +161,7 @@ make install DESTDIR=$RPM_BUILD_ROOT sbindir=/sbin \
 
 echo %{name}-%{version}-%{release} > $RPM_BUILD_ROOT/%{_datadir}/dracut/modules.d/10rpmversion/dracut-version
 rm $RPM_BUILD_ROOT/%{_datadir}/dracut/modules.d/01fips/check
+rm $RPM_BUILD_ROOT/%{_datadir}/dracut/modules.d/02fips-aesni/check
 
 mkdir -p $RPM_BUILD_ROOT/boot/dracut
 mkdir -p $RPM_BUILD_ROOT/var/lib/dracut/overlay
@@ -232,6 +242,11 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,0755)
 %doc COPYING
 %{_datadir}/dracut/modules.d/01fips
+
+%files fips-aesni
+%defattr(-,root,root,0755)
+%doc COPYING
+%{_datadir}/dracut/modules.d/02fips-aesni
 
 %files caps
 %defattr(-,root,root,0755)

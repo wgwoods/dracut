@@ -1,0 +1,14 @@
+#!/bin/bash
+
+FIPSMODULES="aesni-intel"
+
+mkdir -p "${initdir}/etc/modprobe.d"
+
+for mod in $FIPSMODULES; do 
+    if hostonly='' instmods $mod; then
+        echo $mod >> "${initdir}/etc/fipsmodules"
+        echo "blacklist $mod" >> "${initdir}/etc/modprobe.d/fips.conf"
+    fi
+done
+
+# vim:ts=8:sw=4:sts=4:et
