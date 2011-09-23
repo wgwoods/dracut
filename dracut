@@ -227,7 +227,7 @@ export initdir hookdirs dracutbasedir dracutmodules drivers \
 
 if [[ $kernel_only != yes ]]; then
     # Create some directory structure first
-    for d in bin sbin usr/bin usr/sbin usr/lib etc proc sys sysroot tmp dev/pts var/run; do 
+    for d in bin sbin usr/bin usr/sbin usr/lib etc proc sys sysroot tmp dev/pts var/log var/run; do 
 	inst_dir "/$d"; 
     done
 fi
