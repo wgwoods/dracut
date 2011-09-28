@@ -43,7 +43,7 @@ rd_load_policy()
 	    # If machine requires a relabel, force to permissive mode
 	    [ -e "$NEWROOT"/.autorelabel ] && ( echo 0 > "$NEWROOT"/selinux/enforce )
             mount --bind /dev "$NEWROOT/dev"
-            LANG=C chroot "$NEWROOT" /sbin/restorecon -R /dev
+            LANG=C chroot "$NEWROOT" /sbin/restorecon -F -R /dev
 	    return 0
 	fi
 
