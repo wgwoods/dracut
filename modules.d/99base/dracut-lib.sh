@@ -244,3 +244,14 @@ ip_to_var() {
     esac
 }
 
+killproc() {
+    local exe=$(type -p $1)
+    local sig=$2 i
+    [ -x "$exe" ] || return 1
+    for i in /proc/[0-9]*; do 
+        [ "$i" = "/proc/1" ] && continue
+        if [ -a "$i"/exe ] && [  "$i/exe" -ef "$exe" ] ; then
+            kill $sig ${i##*/}
+        fi
+    done
+}
