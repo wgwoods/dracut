@@ -94,7 +94,7 @@ else
     dracut_install gzip bzip2
 fi
 
-dracut_install /lib/udev/console_init 
+[ -x /lib/udev/console_init ] && dracut_install /lib/udev/console_init 
 dracut_install setfont loadkeys
 inst_rules 10-console.rules
 inst_hook cmdline 20 "$moddir/parse-i18n.sh"
