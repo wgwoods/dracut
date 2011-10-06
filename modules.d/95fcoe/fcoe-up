@@ -38,6 +38,7 @@ if [ "$dcb" = "dcb" ]; then
     fipvlan "$netif" -c -s
 elif [ "$netdriver" = "bnx2x" ]; then
     # If driver is bnx2x, do not use /sys/module/fcoe/parameters/create but fipvlan
+    modprobe 8021q
     fipvlan "$netif" -c -s
 else
     echo -n "$netif" > /sys/module/fcoe/parameters/create
