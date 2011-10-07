@@ -38,7 +38,7 @@ client_test() {
     local found opts nbdinfo
 
     [[ $fstype ]] || fstype=ext3
-    [[ $fsopt ]] || fsopt="errors=continue"
+    [[ $fsopt ]] || fsopt="ro"
 
     echo "CLIENT TEST START: $test_name"
 
