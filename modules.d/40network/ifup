@@ -14,6 +14,10 @@ do_dhcp() {
     # XXX add -V vendor class and option parsing per kernel
     #echo "Starting dhcp for interface $netif"
     dhclient "$@" -1 -q -cf /etc/dhclient.conf -pf /tmp/dhclient.$netif.pid -lf /tmp/dhclient.$netif.lease $netif &
+
+    # increase wait time for DHCP
+    echo '[ $(($RDRETRY-$main_loop)) -lt 720 ] && RDRETRY=$(($main_loop+720)); rm -f "$job"' > /initqueue/rd_retry_inc_dhclient.$netif.sh
+
     #|| echo "dhcp failed"
 }
 
