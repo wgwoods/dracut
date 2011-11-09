@@ -16,8 +16,11 @@ if ! getarg rd_NO_PLYMOUTH; then
     [ -c /dev/hvc0 ] || mknod -m 0600 /dev/hvc0 c 229 0
 
     info "Starting plymouth daemon"
+    consoledev=$(getarg console= | sed -e 's/,.*//')
+    consoledev=${consoledev:-tty0}
+    [ -x /lib/udev/console_init ] && /lib/udev/console_init "/dev/$consoledev"
+ 
     [ -x /bin/plymouthd ] && /bin/plymouthd --attach-to-session
-    /lib/udev/console_init tty0
     /bin/plymouth --show-splash 2>&1 | vinfo
 fi
 
