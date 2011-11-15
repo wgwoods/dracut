@@ -66,7 +66,7 @@ do_static() {
 	# do not flush addr for ipv6
 	#strstr $ip '*:*:*' || \
 	#    ip addr flush dev $netif
-	ip addr add $ip/$mask dev $netif
+	ip addr add $ip/$mask brd + dev $netif
     } 
     > /tmp/net.$netif.up
 
