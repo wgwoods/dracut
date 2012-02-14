@@ -4,11 +4,11 @@ TEST_DESCRIPTION="root filesystem on an encrypted LVM PV on a degraded RAID-5"
 KVERSION=${KVERSION-$(uname -r)}
 
 # Uncomment this to debug failures
-#DEBUGFAIL="rdshell"
+DEBUGFAIL="rdshell"
 
 client_run() {
     echo "CLIENT TEST START: $@"
-    $testdir/run-qemu -hda root.ext2 -m 256M -nographic \
+    $testdir/run-qemu -hda root.ext2 -hdc disk2.img -hdd disk3.img -m 256M -nographic \
 	-net none -kernel /boot/vmlinuz-$KVERSION \
 	-append "$@ root=LABEL=root rw quiet rd_retry=3 rdinfo console=ttyS0,115200n81 selinux=0 rdinitdebug rdnetdebug $DEBUGFAIL " \
 	-initrd initramfs.testing
@@ -52,6 +52,9 @@ test_run() {
 test_setup() {
     # Create the blank file to use as a root filesystem
     dd if=/dev/zero of=root.ext2 bs=1M count=40
+    dd if=/dev/zero of=disk1.img bs=1M count=30
+    dd if=/dev/zero of=disk2.img bs=1M count=30
+    dd if=/dev/zero of=disk3.img bs=1M count=30
  
     kernel=$KVERSION
     # Create what will eventually be our root filesystem onto an overlay
@@ -59,13 +62,13 @@ test_setup() {
 	initdir=overlay/source
 	. $basedir/dracut-functions
 	dracut_install sh df free ls shutdown poweroff stty cat ps ln ip route \
-	    /lib/terminfo/l/linux mount dmesg ifconfig dhclient mkdir cp ping dhclient 
+	    mount dmesg ifconfig dhclient mkdir cp ping dhclient 
 	inst "$basedir/modules.d/40network/dhclient-script" "/sbin/dhclient-script"
 	inst "$basedir/modules.d/40network/ifup" "/sbin/ifup"
-	dracut_install grep
+	dracut_install grep strace
 	inst ./test-init /sbin/init
 	find_binary plymouth >/dev/null && dracut_install plymouth
-	(cd "$initdir"; mkdir -p dev sys proc etc var/run tmp )
+	(cd "$initdir"; mkdir -p dev sys proc etc var/run tmp run)
 	cp -a /etc/ld.so.conf* $initdir/etc
 	sudo ldconfig -r "$initdir"
     )
@@ -74,9 +77,10 @@ test_setup() {
     (
 	initdir=overlay
 	. $basedir/dracut-functions
-	dracut_install sfdisk mke2fs poweroff cp umount dd
+	dracut_install sfdisk mke2fs poweroff cp umount dd strace
 	inst_simple ./create-root.sh /initqueue/01create-root.sh
  	inst_simple ./99-idesymlinks.rules /etc/udev/rules.d/99-idesymlinks.rules
+	(cd "$initdir"; mkdir -p run)
    )
  
     # create an initramfs that will create the target root filesystem.
@@ -88,7 +92,7 @@ test_setup() {
 	-f initramfs.makeroot $KVERSION || return 1
     rm -rf overlay
     # Invoke KVM and/or QEMU to actually create the target filesystem.
-    $testdir/run-qemu -hda root.ext2 -m 256M -nographic -net none \
+    $testdir/run-qemu -hda root.ext2 -hdb disk1.img -hdc disk2.img -hdd disk3.img -m 256M -nographic -net none \
 	-kernel "/boot/vmlinuz-$kernel" \
 	-append "root=/dev/dracut/root rw rootfstype=ext2 quiet console=ttyS0,115200n81 selinux=0" \
 	-initrd initramfs.makeroot  || return 1

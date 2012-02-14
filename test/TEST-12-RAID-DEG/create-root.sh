@@ -12,7 +12,7 @@ sfdisk -C 1280 -H 2 -S 32 -L /dev/sda <<EOF
 ,400
 ,400
 EOF
-mdadm --create /dev/md0 --run --auto=yes --level=5 --raid-devices=3 /dev/sda2 /dev/sda3 /dev/sda4
+mdadm --create /dev/md0 --run --auto=yes --level=5 --raid-devices=3 /dev/sdb /dev/sdc /dev/sdd
 # wait for the array to finish initailizing, otherwise this sometimes fails
 # randomly.
 mdadm -W /dev/md0
@@ -33,8 +33,6 @@ umount /sysroot
 lvm lvchange -a n /dev/dracut/root 
 cryptsetup luksClose /dev/mapper/dracut_crypt_test 
 mdadm -W /dev/md0 || :
-mdadm /dev/md0 --fail /dev/sda2 --remove /dev/sda2 
-mdadm -W /dev/md0 || : 
 /sbin/mdadm --detail --export /dev/md0 > /tmp/mduuid ;
 strstr() { [ "${1#*$2*}" != "$1" ]; }
 MD_UUID=$(while read line; do strstr "$line" "MD_UUID=" || continue; line=${line##*MD_UUID=}; echo ${line%% *}; done </tmp/mduuid)
@@ -43,5 +41,6 @@ echo MD_UUID=$MD_UUID
 	echo "dracut-root-block-created" 
 	echo MD_UUID=$MD_UUID 
 } > /dev/sda1
-dd if=/dev/zero of=/dev/sda2 || :
-poweroff -f
+mdadm --stop /dev/md0
+
+/sbin/poweroff -f
