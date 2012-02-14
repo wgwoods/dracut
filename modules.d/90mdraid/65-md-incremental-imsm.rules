@@ -40,7 +40,6 @@ ACTION=="add|change", \
 	KERNEL=="md[0-9]*|md/*", \
 	ENV{MD_LEVEL}!="container", \
 	ENV{MD_CONTAINER}!="?*", \
-        ENV{rd_MDADMCONF}!="?*", \
         ENV{rd_NO_MD}!="?*", \
 	GOTO="do_raidstart"
 
@@ -62,7 +61,6 @@ ACTION=="add|change", \
 	KERNEL=="md[0-9]*|md/*", \
 	ENV{DEVTYPE}!="partition", \
 	ENV{MD_LEVEL}=="container", \
-        ENV{rd_MDADMCONF}!="?*", \
         ENV{rd_NO_MD}!="?*", \
 	GOTO="do_container"
 
