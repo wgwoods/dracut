@@ -23,7 +23,7 @@
 [ -e /sys/module/fcoe/parameters/create ] || modprobe -a fcoe || die "FCoE requested but kernel/initrd does not support FCoE"
 
 modprobe bnx2fc >/dev/null 2>&1
-udevadm settle --timeout=30
+udevadm settle --timeout=30 >/dev/null 2>&1
 
 parse_fcoe_opts() {
     local IFS=:

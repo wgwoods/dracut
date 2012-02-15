@@ -81,7 +81,7 @@ i=0
 while [ ! -b /dev/nbd0 ]; do
     [ $i -ge 20 ] && exit 1
     if [ $UDEVVERSION -ge 143 ]; then
-        udevadm settle --exit-if-exists=/dev/nbd0
+        udevadm settle --exit-if-exists=/dev/nbd0 >/dev/null 2>&1
     else
         sleep 0.1
     fi

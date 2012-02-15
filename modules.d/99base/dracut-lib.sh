@@ -158,9 +158,9 @@ udevsettle() {
     [ -z "$UDEVVERSION" ] && UDEVVERSION=$(udevadm --version)
 
     if [ $UDEVVERSION -ge 143 ]; then
-        udevadm settle --exit-if-exists=/initqueue/work $settle_exit_if_exists
+        udevadm settle --exit-if-exists=/initqueue/work $settle_exit_if_exists >/dev/null 2>&1
     else
-        udevadm settle --timeout=30
+        udevadm settle --timeout=30 >/dev/null 2>&1
     fi
 }
 

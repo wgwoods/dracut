@@ -27,9 +27,9 @@ mount_boot()
             i=0
             while ! [ -e $boot ]; do
                 if [ $UDEVVERSION -ge 143 ]; then
-                    udevadm settle --exit-if-exists=$boot
+                    udevadm settle --exit-if-exists=$boot >/dev/null 2>&1
                 else
-                    udevadm settle --timeout=30
+                    udevadm settle --timeout=30 >/dev/null 2>&1
                 fi
                 [ -e $boot ] && break
                 modprobe scsi_wait_scan && rmmod scsi_wait_scan
