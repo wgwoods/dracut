@@ -36,6 +36,16 @@ The kernel modules have to be specified without the ".ko" suffix.
 specify a space-separated list of kernel modules to add to the initramfs.
 The kernel modules have to be specified without the ".ko" suffix.
 .TP
+.BR \-\-omit-drivers " \fILIST\fR"
+specify a space-separated list of kernel modules to omit from the initramfs.
+The kernel modules have to be specified without the ".ko" suffix. 
+Regular expressions are also allowed like ".*/fs/ocfs/.*".
+
+If [LIST] has multiple arguments, then you have to put these in quotes.
+
+example:
+# dracut --omit "module1 module2"  ...
+.TP
 .BR \-\-filesystems " \fILIST\fR"
 specify a space-separated list of kernel filesystem modules to exclusively 
 include in the generic initramfs.

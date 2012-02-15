@@ -430,8 +430,24 @@ install_kmod_with_fw() {
     modname=${modname%.ko*}
     # no need to go further if the module is already installed
     [[ -e  "${initdir}/lib/modules/$kernel/${1##*/lib/modules/$kernel/}" ]] && return 0
+
+    if [[ $omit_drivers ]]; then
+        local _kmod=${1##*/}
+        _kmod=${_kmod%.ko}
+        _kmod=${_kmod/-/_}
+        if [[ "$_kmod" =~ $omit_drivers ]]; then
+            dinfo "Omitting driver $_kmod"
+            return 1
+        fi
+        if [[ "${1##*/lib/modules/$kernel/}" =~ $omit_drivers ]]; then
+            dinfo "Omitting driver $_kmod"
+            return 1
+        fi
+    fi
+
     inst_simple "$1" "/lib/modules/$kernel/${1##*/lib/modules/$kernel/}" || \
-	return $? 
+	return $?
+
     for fw in $(modinfo -k $kernel -F firmware $1 2>/dev/null); do
 	found=''
 	for fwdir in $fw_dir; do
@@ -520,10 +536,17 @@ instmods() {
                     shift; continue;
                 ;;
 	    *)  
-	        mod=${mod##*/}
                 # if we are already installed, skip this module and go on
 	        # to the next one.
 	        [[ -f $initdir/$1 ]] && { shift; continue; }
+
+	        mod=${mod##*/}
+
+                if [[ $omit_drivers ]] && [[ "$1" =~ $omit_drivers ]]; then
+                    dinfo "Omitting driver ${mod##$srcmods}"
+                    shift; continue;
+                fi
+
 		# If we are building a host-specific initramfs and this
 		# module is not already loaded, move on to the next one.
 		[[ $hostonly ]] && ! grep -q "${mod//-/_}" /proc/modules && \

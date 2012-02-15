@@ -39,6 +39,8 @@ Creates initial ramdisk images for preloading modules
                         exclusively include in the initramfs.
   --add-drivers [LIST]  Specify a space-separated list of kernel 
                         modules to add to the initramfs.
+  --omit-drivers [LIST] Specify a space-separated list of kernel
+                        modules not to add to the initramfs.
   --filesystems [LIST]  Specify a space-separated list of kernel filesystem
                         modules to exclusively include in the generic
                         initramfs.
@@ -81,6 +83,7 @@ while (($# > 0)); do
 	-a|--add) add_dracutmodules_l="$2"; shift;;
 	-d|--drivers) drivers_l="$2"; shift;;
 	--add-drivers) add_drivers_l="$2"; shift;;
+        --omit-drivers) omit_drivers_l+="$2"; shift;;
 	--filesystems) filesystems_l="$2"; shift;;
 	-k|--kmoddir) drivers_dir_l="$2"; shift;;
 	--fwdir) fw_dir_l="$2"; shift;;
@@ -143,6 +146,7 @@ fi
 # these optins add to the stuff in the config file
 [[ $add_dracutmodules_l ]] && add_dracutmodules+=" $add_dracutmodules_l"
 [[ $add_drivers_l ]] && add_drivers+=" $add_drivers_l"
+[[ $omit_drivers_l ]] && omit_drivers+=" $omit_drivers_l"
 
 # these options override the stuff in the config file
 [[ $dracutmodules_l ]] && dracutmodules=$dracutmodules_l
@@ -176,6 +180,15 @@ dracutfunctions=$dracutbasedir/dracut-functions
 export dracutfunctions
 
 dinfo "Executing $0 $dracut_args"
+
+omit_drivers_corrected=""
+for d in $omit_drivers; do
+    strstr " $drivers $add_drivers " " $d " && continue
+    omit_drivers_corrected+="$d|"
+done
+omit_drivers="${omit_drivers_corrected%|}"
+unset omit_drivers_corrected
+
 # This is kinda legacy -- eventually it should go away.
 case $dracutmodules in
     ""|auto) dracutmodules="all" ;;
@@ -223,7 +236,7 @@ chmod 755 "$initdir"
 
 export initdir hookdirs dracutbasedir dracutmodules drivers \
     fw_dir drivers_dir debug beverbose no_kernel kernel_only \
-    add_drivers mdadmconf lvmconf filesystems
+    add_drivers omit_drivers mdadmconf lvmconf filesystems
 
 if [[ $kernel_only != yes ]]; then
     # Create some directory structure first
