@@ -437,14 +437,12 @@ do not start plymouth. This will not work with encrypted partitions.
 .TP
 .B /var/log/dracut.log
 .TP
-.B /tmp/dracut.log
-see \fBdracut.conf\fR(5)
-.TP
 .B /etc/dracut.conf
+see \fBdracut.conf\fR(5)
 .SS "Configuration in the Initramfs"
 .TP 
-.B /conf/conf.d/
-Any files found in /conf/conf.d/ will be sourced in the initramfs to 
+.B /etc/conf.d/
+Any files found in /etc/conf.d/ will be sourced in the initramfs to 
 set initial values. Command line options will override these values 
 set in the configuration files.
 .TP
