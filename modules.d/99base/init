@@ -74,14 +74,14 @@ RDDEBUG=""
 mknod -m 0666 /dev/null c 1 3
 
 # mount some important things
-mount -t proc /proc /proc >/dev/null 2>&1
-mount -t sysfs /sys /sys >/dev/null 2>&1
+mount -t proc -o nosuid,noexec,nodev proc /proc >/dev/null 2>&1
+mount -t sysfs -o nosuid,noexec,nodev sysfs /sys >/dev/null 2>&1
 
 if [ ! -c /dev/ptmx ]; then
     # try to mount devtmpfs
-    if ! mount -t devtmpfs -omode=0755 udev /dev >/dev/null 2>&1; then
+    if ! mount -t devtmpfs -o mode=0755,nosuid devtmpfs /dev >/dev/null 2>&1; then
         # if it failed fall back to normal tmpfs
-	mount -t tmpfs -omode=0755 udev /dev >/dev/null 2>&1 
+	mount -t tmpfs -omode=0755,nosuid tmpfs /dev >/dev/null 2>&1 
 	# Make some basic devices first, let udev handle the rest
 	mknod -m 0666 /dev/null c 1 3
 	mknod -m 0666 /dev/ptmx c 5 2
@@ -106,7 +106,7 @@ setdebug
 mkdir /dev/shm
 mkdir /dev/pts
 mount -t devpts -o gid=5,mode=620 devpts /dev/pts >/dev/null 2>&1
-mount -t tmpfs tmpfs /dev/shm >/dev/null 2>&1
+mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /dev/shm >/dev/null 
 
 UDEVVERSION=$(udevadm --version)
 
