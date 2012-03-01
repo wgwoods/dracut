@@ -53,6 +53,7 @@ Requires: tar
 Requires: udev
 Requires: util-linux-ng >= 2.16
 Requires: which
+Requires: file
 
 %if ! 0%{?with_switch_root}
 Requires: util-linux-ng >= 2.16
