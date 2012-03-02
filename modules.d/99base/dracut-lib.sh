@@ -176,7 +176,7 @@ udevproperty() {
 
 wait_for_if_up() {
     local cnt=0
-    while [ $cnt -lt 20 ]; do 
+    while [ $cnt -lt 100 ]; do 
 	li=$(ip link show $1)
 	[ -z "${li##*state UP*}" ] && return 0
 	sleep 0.1
