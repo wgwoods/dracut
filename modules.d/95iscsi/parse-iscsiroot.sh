@@ -4,6 +4,9 @@
 #	root=iscsi:[<servername>]:[<protocol>]:[<port>]:[<LUN>]:<targetname>
 #	[root=*] netroot=iscsi:[<servername>]:[<protocol>]:[<port>]:[<LUN>]:<targetname>
 #
+#       or netroot=iscsi:[<servername>]:[<protocol>]:[<port>]:[<iscsi_iface_name>]:[<netdev_name>]:[<LUN>]:<targetname>
+#
+#
 # Legacy formats:
 #	[net]root=[iscsi] iscsiroot=[<servername>]:[<protocol>]:[<port>]:[<LUN>]:<targetname>
 # 	[net]root=[iscsi] iscsi_firmware
@@ -66,12 +69,7 @@ fi
 # If it's not iscsi we don't continue
 [ "${netroot%%:*}" = "iscsi" ] || return
 
-# Check required arguments. there's only one, but it's at the end
-if [ -z "$iscsi_firmware" ] ; then
-    case "${netroot##iscsi:*:*:*:*:}" in
-	$netroot|'') die "Argument targetname for iscsiroot is missing";;
-    esac
-fi
+parse_iscsi_root "$netroot" || return
 
 # ISCSI actually supported?
 if ! [ -e /sys/module/iscsi_tcp ]; then

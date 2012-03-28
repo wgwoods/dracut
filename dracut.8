@@ -341,7 +341,7 @@ Set the NFSv4 domain name. Will overwrite the settings in /etc/idmap.conf.
 .SS iSCSI
 .TP
 .ad l
-.BR root= "\%iscsi:[username:password\:[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\::[<LUN>]\::<targetname>"
+.BR root= "\%iscsi:[username:password\:[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\:[:[<iscsi_iface_name>]:[<netdev_name>]]\::[<LUN>]\::<targetname>"
 .ad
 protocol defaults to "6", LUN defaults to "0".
 
@@ -356,7 +356,7 @@ http://tools.ietf.org/html/rfc4173
 
 .TP
 .ad l
-.BR root= "\%iscsi:[username:password\:[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\::[<LUN>]\::<targetname>"
+.BR root= "\%iscsi:[username:password\:[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\:[:[<iscsi_iface_name>]:[<netdev_name>]]\::[<LUN>]\::<targetname>"
 .ad
 e.g. root=iscsi:192.168.50.1::::iqn.2009-06.dracut:target0
 
@@ -366,7 +366,7 @@ If servername is an IPv6 address, it has to be put in brackets.
   root=iscsi:[2001:DB8::1]::::iqn.2009-06.dracut:target0
 .TP
 .ad l
-.BR root= ??? " netroot=" "\%iscsi:[username:password[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\::[<LUN>]\::<targetname> ..."
+.BR root= ??? " netroot=" "\%iscsi:[username:password[:reverse:password]@]\:[<servername>]\::[<protocol>]\::[<port>]\:[:[<iscsi_iface_name>]:[<netdev_name>]]\::[<LUN>]\::<targetname> ..."
 .ad
 multiple netroot options allow setting up multiple iscsi disks
  e.g. 
@@ -387,6 +387,15 @@ manually specify all iscsistart parameter (see \fIiscsistart\ --help\fR)
 .TP
 .BR root= ??? " netroot=iscsi iscsi_firmware"
 will read the iscsi parameter from the BIOS firmware
+
+.TP
+.BR iscsi_param= <param>
+<param> will be passed as "--param <param>" to iscsistart.
+This parameter can be specified multiple times.
+ e.g.:
+   "netroot=iscsi iscsi_firmware iscsi_param=node.session.timeo.replacement_timeout=30"
+   will result in
+   iscsistart -b --param node.session.timeo.replacement_timeout=30
 
 .SS FCoE
 .TP
