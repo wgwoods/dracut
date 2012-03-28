@@ -8,17 +8,23 @@ DEBUGFAIL="rdshell"
 
 client_run() {
     echo "CLIENT TEST START: $@"
-    $testdir/run-qemu -hda root.ext2 -hdc disk2.img -hdd disk3.img -m 256M -nographic \
+    cp disk2.img disk2.img.new
+    cp disk3.img disk3.img.new
+    $testdir/run-qemu -hda root.ext2 -hdc disk2.img.new -hdd disk3.img.new -m 256M -nographic \
 	-net none -kernel /boot/vmlinuz-$KVERSION \
 	-append "$@ root=LABEL=root rw quiet rd_retry=3 rdinfo console=ttyS0,115200n81 selinux=0 rdinitdebug rdnetdebug $DEBUGFAIL " \
 	-initrd initramfs.testing
     if ! grep -m 1 -q dracut-root-block-success root.ext2; then
 	echo "CLIENT TEST END: $@ [FAIL]"
+        rm -f disk2.img.new
+        rm -f disk3.img.new
 	return 1;
     fi
 
     sed -i -e 's#dracut-root-block-success#dracut-root-block-xxxxxxx#' root.ext2
     echo "CLIENT TEST END: $@ [OK]"
+    rm -f disk2.img.new
+    rm -f disk3.img.new
     return 0
 }
 
@@ -97,6 +103,9 @@ test_setup() {
 	-append "root=/dev/dracut/root rw rootfstype=ext2 quiet console=ttyS0,115200n81 selinux=0" \
 	-initrd initramfs.makeroot  || return 1
     grep -m 1 -q dracut-root-block-created root.ext2 || return 1
+
+    rm -f disk1.img
+
     eval $(grep --binary-files=text -m 1 MD_UUID root.ext2)
     (
 	initdir=overlay
@@ -118,6 +127,7 @@ test_setup() {
 test_cleanup() {
     rm -fr overlay mnt
     rm -f root.ext2 initramfs.makeroot initramfs.testing
+    rm -f disk*.img*
 }
 
 . $testdir/test-functions
