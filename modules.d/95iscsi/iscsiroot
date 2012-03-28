@@ -2,7 +2,7 @@
 #
 # This implementation is incomplete: Discovery mode is not implemented and
 # the argument handling doesn't follow currently agreed formats. This is mainly
-# because rfc4173 does not say anything about iscsi_initiator but open-iscsi's 
+# because rfc4173 does not say anything about iscsi_initiator but open-iscsi's
 # iscsistart needs this.
 #
 
@@ -16,7 +16,7 @@ PATH=$PATH:/sbin:/usr/sbin
 # Huh? Empty $2?
 [ -z "$2" ] && exit 1
 
-# Huh? Empty $3? This isn't really necessary, since NEWROOT isn't 
+# Huh? Empty $3? This isn't really necessary, since NEWROOT isn't
 # used here. But let's be consistent
 [ -z "$3" ] && exit 1
 
@@ -51,7 +51,7 @@ fi
 
 unset iscsi_initiator iscsi_target_name iscsi_target_ip iscsi_target_port
 unset iscsi_target_group iscsi_protocol iscsirw iscsi_lun
-unset iscsi_username iscsi_password 
+unset iscsi_username iscsi_password
 unset iscsi_in_username iscsi_in_password
 
 # override conf settings by command line options
@@ -74,7 +74,7 @@ arg=$(getarg iscsi_in_username)
 arg=$(getarg iscsi_in_password)
 [ -n "$arg" ] && iscsi_in_password=$arg
 
-handle_netroot() 
+handle_netroot()
 {
     iroot=$1
     # override conf/commandline options by dhcp root_path
@@ -83,7 +83,7 @@ handle_netroot()
     IFS=@
     set $iroot
     if [ $# -gt 1 ]; then
-	authinfo=$1; shift 
+	authinfo=$1; shift
 	iroot=$*
     # allow empty authinfo to allow having an @ in iscsi_target_name like this:
     # netroot=iscsi:@192.168.1.100::3260::iqn.2009-01.com.example:testdi@sk
@@ -97,13 +97,13 @@ handle_netroot()
 		iscsi_in_password=$4
             fi
 	fi
-    fi  
+    fi
 
     IFS="$OLDIFS"
 
     local v=${iroot}:
     local i
-    set -- 
+    set --
     while [ -n "$v" ]; do
 	if [ "${v#\[*:*:*\]:}" != "$v" ]; then
 	# handle IPv6 address
@@ -111,7 +111,7 @@ handle_netroot()
 	    i="${i##\[}"
 	    set -- "$@" "$i"
 	    v=${v#\[$i\]:}
-	else		    
+	else
 	    set -- "$@" "${v%%:*}"
 	    v=${v#*:}
 	fi
@@ -141,7 +141,7 @@ handle_netroot()
     if [ -z $iscsi_initiator ]; then
 	if [ -f /sys/firmware/ibft/initiator/initiator-name ]; then
 	    iscsi_initiator=$(while read line; do echo $line;done < /sys/firmware/ibft/initiator-name)
-	fi	
+	fi
     fi
 
     if [ -z $iscsi_target_port ]; then
@@ -192,8 +192,8 @@ handle_netroot()
 }
 
 # loop over all netroot parameter
-if getarg netroot; then 
-    for nroot in $(getargs netroot); do 
+if getarg netroot; then
+    for nroot in $(getargs netroot); do
         [ "${netroot%%:*}" = "iscsi" ] || continue
 	handle_netroot ${nroot##iscsi:}
     done
