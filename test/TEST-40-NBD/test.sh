@@ -285,6 +285,10 @@ make_server_root() {
 }
 
 test_setup() {
+    if ! command -v nbd-server >/dev/null; then
+	echo "'nbd-server' not found"
+	return 1
+    fi
     make_encrypted_root || return 1
     make_client_root || return 1
     make_server_root || return 1
