@@ -9,10 +9,7 @@
 updates=$(getarg live.updates=)
 if [ -n "$updates" ]; then
     # make sure network comes up even if we're doing a local live device
-    if [ -z "$netroot" ]; then
-	echo > /tmp/net.ifaces
-	unset CMDLINE
-    fi
+    [ -z "$netroot" ] && >> /tmp/net.ifaces
     echo "$updates" > /tmp/liveupdates.info
     echo '[ -e /tmp/liveupdates.done ]' > \
         $hookdir/initqueue/finished/liveupdates.sh
