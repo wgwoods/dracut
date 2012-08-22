@@ -11,7 +11,7 @@ source_conf /etc/conf.d
 
 # pre pivot scripts are sourced just before we doing cleanup and switch over
 # to the new root.
-getarg 'rd.break=pre-udev' 'rdbreak=pre-udev' && emergency_shell -n pre-udev "Break pre-udev"
+getarg 'rd.break=pre-udev' 'rdbreak=pre-udev' && debug_shell -n pre-udev "Break pre-udev"
 source_hook pre-udev
 
 export -p > /dracut-state.sh

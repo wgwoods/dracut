@@ -866,7 +866,7 @@ wait_for_loginit()
 
 _emergency_shell()
 {
-    local _name="$1"
+    local _name="$1" _ctty=""
     if [ -n "$DRACUT_SYSTEMD" ]; then
         > /.console_lock
         echo "PS1=\"$_name:\${PWD}# \"" >/etc/profile
@@ -897,7 +897,6 @@ _emergency_shell()
 
 emergency_shell()
 {
-    local _ctty
     set +e
     local _rdshell_name="dracut" action="Boot" hook="emergency"
     if [ "$1" = "-n" ]; then
@@ -921,6 +920,17 @@ emergency_shell()
         exit 1
     fi
     [ -e /run/initramfs/.die ] && exit 1
+}
+
+debug_shell() {
+    local _rdshell_name="debug"
+    if [ "$1" = "-n" ]; then
+        _rdshell_name=$2
+        shift 2
+    fi
+
+    printf "\n\n$*\n\n" >&2
+    _emergency_shell $_rdshell_name
 }
 
 # Retain the values of these variables but ensure that they are unexported

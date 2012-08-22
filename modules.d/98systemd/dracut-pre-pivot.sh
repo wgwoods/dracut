@@ -12,11 +12,11 @@ source_conf /etc/conf.d
 
 # pre pivot scripts are sourced just before we doing cleanup and switch over
 # to the new root.
-getarg 'rd.break=pre-pivot' 'rdbreak=pre-pivot' && emergency_shell -n pre-pivot "Break pre-pivot"
+getarg 'rd.break=pre-pivot' 'rdbreak=pre-pivot' && debug_shell -n pre-pivot "Break pre-pivot"
 source_hook pre-pivot
 
 # pre pivot cleanup scripts are sourced just before we switch over to the new root.
-getarg 'rd.break=cleanup' 'rdbreak=cleanup' && emergency_shell -n cleanup "Break cleanup"
+getarg 'rd.break=cleanup' 'rdbreak=cleanup' && debug_shell -n cleanup "Break cleanup"
 source_hook cleanup
 
 # By the time we get here, the root filesystem should be mounted.
@@ -38,6 +38,6 @@ echo "NEWROOT=\"$NEWROOT\"" >> /run/initramfs/switch-root.conf
 # remove helper symlink
 [ -h /dev/root ] && rm -f /dev/root
 
-getarg rd.break -d rdbreak && emergency_shell -n switch_root "Break before switch_root"
+getarg rd.break -d rdbreak && debug_shell -n switch_root "Break before switch_root"
 
 exit 0

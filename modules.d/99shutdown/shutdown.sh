@@ -12,7 +12,7 @@ export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 . /lib/dracut-lib.sh
 
 trap "emergency_shell --shutdown shutdown Signal caught!" 0
-getarg 'rd.break=pre-shutdown' && emergency_shell --shutdown pre-shutdown "Break before pre-shutdown"
+getarg 'rd.break=pre-shutdown' && debug_shell -n pre-shutdown "Break before pre-shutdown"
 
 umount_a() {
     local _did_umount="n"
@@ -55,7 +55,7 @@ while _check_shutdown; do
 done
 _check_shutdown final
 
-getarg 'rd.break=shutdown' && emergency_shell --shutdown shutdown "Break before shutdown"
+getarg 'rd.break=shutdown' && debug_shell -n shutdown "Break before shutdown"
 [ "$1" = "reboot" ] && reboot -f -d -n
 [ "$1" = "poweroff" ] && poweroff -f -d -n
 [ "$1" = "halt" ] && halt -f -d -n
