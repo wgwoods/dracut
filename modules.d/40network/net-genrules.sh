@@ -31,22 +31,30 @@ command -v fix_bootif >/dev/null || . /lib/net-lib.sh
 
     ifup='/sbin/ifup $env{INTERFACE}'
     [ -z "$netroot" ] && ifup="$ifup -m"
+    runcmd="RUN+=\"/sbin/initqueue --onetime $ifup\""
 
-    # BOOTIF says everything, use only that one
-    BOOTIF=$(getarg 'BOOTIF=')
-    if [ -n "$BOOTIF" ] ; then
-        BOOTIF=$(fix_bootif "$BOOTIF")
-        printf 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="%s", RUN+="%s"\n' "$BOOTIF" "/sbin/initqueue --onetime $ifup"
-
-    # If we have to handle multiple interfaces, handle only them.
-    elif [ -n "$IFACES" ] ; then
-        for iface in $IFACES ; do
-            printf 'SUBSYSTEM=="net", ENV{INTERFACE}=="%s", RUN+="%s"\n' "$iface" "/sbin/initqueue --onetime $ifup"
+    # We have some specific interfaces to handle
+    if [ -n "$IFACES" ]; then
+        echo 'SUBSYSTEM!="net", GOTO="net_end"'
+        echo 'ACTION=="remove", GOTO="net_end"'
+        for iface in $IFACES; do
+            case "$iface" in
+                ??:??:??:??:??:??)  # MAC address
+                    cond="ATTR{address}==\"$iface\"" ;;
+                ??-??-??-??-??-??)  # MAC address in BOOTIF form
+                    cond="ATTR{address}==\"$(fix_bootif $iface)\"" ;;
+                *)                  # an interface name
+                    cond="ENV{INTERFACE}==\"$iface\"" ;;
+            esac
+            # The GOTO prevents us from trying to ifup the same device twice
+            echo "$cond, $runcmd, GOTO=\"net_end\""
         done
+        echo 'LABEL="net_end"'
 
     # Default: We don't know the interface to use, handle all
     else
-        printf 'SUBSYSTEM=="net", RUN+="%s"\n' "/sbin/initqueue --onetime $ifup" > /etc/udev/rules.d/91-default-net.rules
+        cond='ACTION=="add|change", SUBSYSTEM=="net"'
+        echo "$cond, $runcmd" > /etc/udev/rules.d/91-default-net.rules
     fi
 
 } > /etc/udev/rules.d/90-net.rules
