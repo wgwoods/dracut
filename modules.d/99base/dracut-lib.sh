@@ -330,6 +330,40 @@ source_conf() {
     for f in "/$1"/*.conf; do [ -e "$f" ] && . "$f"; done
 }
 
+# import a dracut library, optionally checking that the given symbols exist.
+# usage: importlib <lib-name> [for <symbol> ...]
+# example: "importlib net for ip_to_var"
+importlib() {
+    local libname="$1" libfile="$(_findlib $1)" symlist="" i=""
+    [ -z "$libname" ] && return
+    if [ -z "$libfile" ]; then
+        warn "No library named $libname"
+        return 1
+    fi
+    if ! listlist : "$_imported_libs" $libname; then
+        . $libfile
+        _imported_libs="$_imported_libs:$libname"
+    fi
+    [ "$2" = "for" ] && shift 2 && symlist="$*"
+    for i in $symlist; do
+        # no function/alias or variable with this name?
+        if ! command -v $i >/dev/null && ! [ -n "$(eval echo \$$i)" ]; then
+            warn "No symbol named $i found in $libname"
+        fi
+    done
+}
+
+_importlib_path="/lib"
+_findlib() {
+    local libfile="$1-lib.sh" IFS=':'
+    set -- $_importlib_path
+    while [ "$#" -gt 0 ]; do
+        [ -f "$1/$libfile" ] && echo "$1/$libfile" && return 0
+        shift
+    done
+    return 1
+}
+
 die() {
     {
         echo "<24>dracut: FATAL: $*";
