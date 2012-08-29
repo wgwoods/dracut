@@ -2,12 +2,15 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 
+_DEBUG_OFF=0
 debug_off() {
     set +x
+     _DEBUG_OFF=$((_DEBUG_OFF+1))
 }
 
 debug_on() {
-    [ "$RD_DEBUG" = "yes" ] && set -x
+    [ $_DEBUG_OFF -gt 0 ] && _DEBUG_OFF=$((_DEBUG_OFF-1))
+    [ $_DEBUG_OFF = 0 ] && [ "$RD_DEBUG" = "yes" ] && set -x && set -x
 }
 
 # returns OK if $1 contains $2
