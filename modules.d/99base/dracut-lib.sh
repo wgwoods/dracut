@@ -497,17 +497,23 @@ find_mount() {
 
 # usage: ismounted <mountpoint>
 # usage: ismounted /dev/<device>
-ismounted() {
-    if [ -b "$1" ]; then
-        find_mount "$1" > /dev/null && return 0
-        return 1
-    fi
+if command -v findmnt >/dev/null; then
+    ismounted() {
+        findmnt "$1" > /dev/null 2>&1
+    }
+else
+    ismounted() {
+        if [ -b "$1" ]; then
+            find_mount "$1" > /dev/null && return 0
+            return 1
+        fi
 
-    while read a m a; do
-        [ "$m" = "$1" ] && return 0
-    done < /proc/mounts
-    return 1
-}
+        while read a m a; do
+            [ "$m" = "$1" ] && return 0
+        done < /proc/mounts
+        return 1
+    }
+fi
 
 wait_for_if_up() {
     local cnt=0
@@ -924,7 +930,7 @@ _emergency_shell()
             _ctty=/dev/$_ctty
         fi
         [ -c "$_ctty" ] || _ctty=/dev/tty1
-        strstr "$(setsid --help 2>/dev/null)" "ctty" && CTTY="-c"
+        case "$(/usr/bin/setsid --help 2>&1)" in *--ctty*) CTTY="--ctty";; esac
         setsid $CTTY /bin/sh -i -l 0<$_ctty 1>$_ctty 2>&1
     fi
 }

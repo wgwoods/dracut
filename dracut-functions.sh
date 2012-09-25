@@ -239,6 +239,21 @@ else
     }
 fi
 
+get_persistent_dev() {
+    local i _tmp _dev
+
+    _dev=$(udevadm info --query=name --name="$1" 2>/dev/null)
+    [ -z "$_dev" ] && return
+
+    for i in /dev/disk/by-id/*; do
+        _tmp=$(udevadm info --query=name --name="$i" 2>/dev/null)
+        if [ "$_tmp" = "$_dev" ]; then
+            echo $i
+            return
+        fi
+    done
+}
+
 # get_fs_env <device>
 # Get and set the ID_FS_TYPE and ID_FS_UUID variable from udev for a device.
 # Example:
@@ -468,7 +483,7 @@ for_each_host_dev_and_slaves()
     local _dev
     for _dev in ${host_devs[@]}; do
         [[ -b "$_dev" ]] || continue
-        check_block_and_slaves_all $_func $(get_maj_min $_dev) && return 0
+        check_block_and_slaves $_func $(get_maj_min $_dev) && return 0
     done
     return 1
 }
@@ -620,6 +635,12 @@ else
             if [[ -e "${_src%/*}/.${_src##*/}.hmac" ]]; then
                 inst "${_src%/*}/.${_src##*/}.hmac" "${_target%/*}/.${_target##*/}.hmac"
             fi
+            if [[ -e "/lib/fipscheck/${_src##*/}.hmac" ]]; then
+                inst "/lib/fipscheck/${_src##*/}.hmac" "/lib/fipscheck/${_target##*/}.hmac"
+            fi
+            if [[ -e "/lib64/fipscheck/${_src##*/}.hmac" ]]; then
+                inst "/lib64/fipscheck/${_src##*/}.hmac" "/lib64/fipscheck/${_target##*/}.hmac"
+            fi
         fi
         ddebug "Installing $_src"
         cp --reflink=auto --sparse=auto -pfL "$_src" "${initdir}/$_target"
@@ -656,6 +677,12 @@ else
                 # install checksum files also
                 if [[ -e "${_src%/*}/.${_src##*/}.hmac" ]]; then
                     inst "${_src%/*}/.${_src##*/}.hmac" "${_dest%/*}/.${_dest##*/}.hmac"
+                fi
+                if [[ -e "/lib/fipscheck/${_src##*/}.hmac" ]]; then
+                    inst "/lib/fipscheck/${_src##*/}.hmac" "/lib/fipscheck/${_dest##*/}.hmac"
+                fi
+                if [[ -e "/lib64/fipscheck/${_src##*/}.hmac" ]]; then
+                    inst "/lib64/fipscheck/${_src##*/}.hmac" "/lib64/fipscheck/${_dest##*/}.hmac"
                 fi
             fi
             _reallib=$(readlink -f "$_src")
